@@ -18,22 +18,15 @@
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
-              nim
-              nimble
+              go gopls gotools
               sqlite
-              pkg-config
             ];
 
             shellHook = ''
-              echo "jump-pad dev shell — nim: $(nim --version | head -n1)"
+              echo "jump-pad dev shell — go: $(go version)"
             '';
           };
         });
 
-      # `packages` (needed for `nix build` / `nix run` and the release
-      # binary) comes once an actual .nimble file + source exist — add a
-      # `nimPackages.buildNimPackage` derivation per-system here, forAllSystems
-      # style like devShells above (see docs/roadmap.org — deployment
-      # targets: raw binary / systemd / Nix package).
     };
 }
