@@ -20,11 +20,26 @@
             packages = with pkgs; [
               go gopls gotools
               sqlite
+              just
             ];
 
             shellHook = ''
               echo "jump-pad dev shell — go: $(go version)"
             '';
+          };
+        });
+
+      packages = forAllSystems (system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+        in
+        {
+          default = pkgs.buildGoModule {
+            pname = "jump-pad";
+            version = "0.1.0";
+            src = ./.;
+            vendorHash = "";
+            subPackages = [ "cmd/jump-pad" ];
           };
         });
 
