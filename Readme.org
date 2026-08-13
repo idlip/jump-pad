@@ -1,0 +1,37 @@
+* jump-pad
+:PROPERTIES:
+:CUSTOM_ID: jump-pad
+:END:
+
+Minimal URL shortener + pastebin. Single binary, SQLite storage, no framework or complication.
+Tool is kept bare metal and to be absolute minimal. It should just work and no need regular maintenance.
+The intention is to make it work forever, thus wholly stays vanilla in implementation.
+
+- Inspired by [[https://news.ycombinator.com/][Hacker news]], [[https://lobste.rs/][Lobste.rs]] and [[https://miniflux.app/opinionated.html][Miniflux]] to stay opinionated and with no BS. It works and it needs no cosmetic bloat.
+
+** Features
+
+- *Core* :: Shortener - Helps in redirect URLs very easily in an instant without any network queue.
+  Pastebin - Dispense text to share and easily fetch over network.
+
+- *Configurable* :: Be completely override-able and add tweak to full extent.
+  The main intention of this tool is to make it work absolutely and overriding parts for cosmetics and naming can be configured for hosting.
+
+- *Minimal* :: Stay minimal and do the given job correctly.
+  It must only do its purpose as tool and not add cognitive load to user.
+
+- *Secure* :: Only admin can manage or delete entries and no attacker can intrude to de-crypt or leak data.
+  Security will be considered as the primary goal after functionality.
+
+- *Binary* :: Tool stays in single binary, can run anywhere and must work as expected anytime.
+  No headache, even compiling should be instant.
+
+- *Reproducible* :: Tool should stay reproducible and more over must work even after maintenance gap or no updates.
+  Backend stays simple DB add and remove. Frontend stays vanilla Html+Css+JS which must never break.
+
+- *Documentation* :: _Code as Docs_. Code must be for human, and talk must be for human as well.
+  Make code readable and easy for contribution or corrections, make every function atomic to keep it simple and add tests to dictate determinism.
+  Documentation via readme is for quick start users to get started and have the taste of suckless tool.
+
+- *Philosophy* :: Tool follows inspiration from [[https://www.gnu.org/software/emacs/][Emacs]], [[https://lobste.rs/][Lobste.rs]], [[https://miniflux.app/opinionated.html][Miniflux]], [[https://github.com/knadh/listmonk/][Listmonk]]. Follows [[https://en.wikipedia.org/wiki/Unix_philosophy][Unix philosophy]] in functionality and [[https://suckless.org/philosophy/][Suckless philosophy]] to keep it devoid of BS.
+
