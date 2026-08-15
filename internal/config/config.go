@@ -35,6 +35,16 @@ func NormalizePrefix(prefix string) string {
 	}
 	return prefix
 }
+
+// Validate refuses a configuration that cannot serve safely. The server
+// stops at startup instead of running with a silent weakness.
+func (c Config) Validate() error {
+	if NormalizePrefix(c.RedirectPrefix) == NormalizePrefix(c.PastePrefix) {
+		return fmt.Errorf("redirect_prefix and paste_prefix must differ, and both resolve to %q", NormalizePrefix(c.RedirectPrefix))
+	}
+	return nil
+}
+
 // WithFile parses a key=value file, where a blank line and a #-comment are
 // skipped, and returns a copy of c with every known key applied.
 func (c Config) WithFile(data string) (Config, error) {
