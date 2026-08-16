@@ -75,6 +75,67 @@ function wirePasteForm() {
     }
   });
 }
+// wirePastePreviewToggle swaps the paste textarea for a highlighted read-only preview, and back.
+function wirePastePreviewToggle() {
+  const toggle = document.getElementById("paste-preview-toggle");
+  const textarea = document.getElementById("paste-content");
+  const preview = document.getElementById("paste-preview");
+  const language = document.getElementById("paste-language");
+
+  toggle.addEventListener("click", () => {
+    const editing = preview.hidden;
+    if (editing) {
+      highlightInto(document.getElementById("paste-highlight"), textarea.value, language.value);
+    }
+    preview.hidden = !editing;
+    textarea.hidden = editing;
+    toggle.textContent = editing ? "Edit" : "Preview";
+    toggle.setAttribute("aria-pressed", editing ? "true" : "false");
+  });
+}
+// loadPaste fetches a raw paste by id, renders it highlighted, and wires the copy/raw controls.
+async function loadPaste(id) {
+  const status = document.getElementById("view-status");
+  const code = document.getElementById("view-code");
+  try {
+    const res = await fetch(window.JUMPPAD_CONFIG.pastePrefix + id);
+    if (!res.ok) {
+      status.textContent = res.status === 410 ? "This paste has expired." : "Paste not found.";
+      return;
+    }
+    const text = await res.text();
+    highlightInto(code, text, res.headers.get("X-Paste-Language") || "auto");
+    status.textContent = "";
+    wireViewActions(id, text);
+  } catch (err) {
+    status.textContent = "Error loading paste: " + err.message;
+  }
+}
+
+// wireViewActions shows and wires the Copy/Raw controls under a successfully loaded paste.
+function wireViewActions(id, text) {
+  const actions = document.getElementById("view-actions");
+  const rawLink = document.getElementById("view-raw-link");
+  const copyButton = document.getElementById("view-copy");
+
+  rawLink.href = window.JUMPPAD_CONFIG.pastePrefix + id;
+  copyButton.onclick = () => navigator.clipboard.writeText(text);
+  actions.hidden = false;
+}
+
+// highlightInto renders text into code, using hljs's language grammar if known, else auto-detect.
+function highlightInto(code, text, language) {
+  code.removeAttribute("data-highlighted");
+  if (language && language !== "auto") {
+    code.textContent = text;
+    code.className = "language-" + language;
+    hljs.highlightElement(code);
+  } else {
+    code.className = "";
+    code.innerHTML = hljs.highlightAuto(text).value;
+  }
+}
+
 // resolveExpiry reads a form's expiry select, substituting the paired date input's value when set to "custom".
 function resolveExpiry(form) {
   const select = form.querySelector('select[name="expiry"]');
