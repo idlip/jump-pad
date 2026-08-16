@@ -1,0 +1,257 @@
+/* Zero custom classes anywhere -- every rule targets a native HTML element,
+   an id (one page section/widget each), or an attribute.
+
+   Colors are base16 (https://github.com/chriskempson/base16): swap the
+   --base0X values for any published base16 scheme's hex codes to reskin
+   this completely, in either light or dark, no other edits needed. Default
+   below is base16-default (chriskempson), light and dark variants picked
+   automatically via light-dark().
+
+   Layout is deliberately dense and undecorated -- inspired by Hacker News,
+   lobste.rs, and Miniflux: minimal chrome, small type, no cards/shadows/
+   rounded corners, content over decoration. See Miniflux's own case for
+   this (https://miniflux.app/opinionated.html) if you want the reasoning.
+
+   Check -> https://github.com/tinted-theming/schemes for more themes
+*/
+
+:root {
+  --base00: light-dark(#f8f8f8, #181818); /* background */
+  --base01: light-dark(#e8e8e8, #282828); /* lighter background */
+  --base02: light-dark(#d8d8d8, #383838); /* selection background */
+  --base03: light-dark(#b8b8b8, #585858); /* comments, muted text */
+  --base04: light-dark(#585858, #b8b8b8); /* dark foreground */
+  --base05: light-dark(#383838, #d8d8d8); /* default foreground */
+  --base06: light-dark(#282828, #e8e8e8); /* light foreground */
+  --base07: light-dark(#181818, #f8f8f8); /* light background */
+  --base08: #ab4642; /* red -- errors */
+  --base09: #dc9656; /* orange -- links/accent, the HN nod */
+  --base0A: #f7ca88; /* yellow */
+  --base0B: #a1b56c; /* green -- success */
+  --base0C: #86c1b9; /* cyan */
+  --base0D: #7cafc2; /* blue */
+  --base0E: #ba8baf; /* purple -- keywords */
+  --base0F: #a16946; /* brown */
+  color-scheme: light dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--base00);
+  color: var(--base05);
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  max-width: 42rem;
+  margin-inline: auto;
+  padding: 0.75rem;
+}
+
+h1 {
+  font-size: 1.1rem;
+  display: inline;
+}
+
+h2 {
+  font-size: 1rem;
+  border-bottom: 1px solid var(--base02);
+  padding-block-end: 0.25rem;
+}
+
+a {
+  color: var(--base09);
+}
+
+header {
+  border-bottom: 1px solid var(--base02);
+  padding-block-end: 0.5rem;
+  margin-block-end: 0.5rem;
+}
+
+header p {
+  color: var(--base03);
+  margin: 0.25rem 0 0;
+}
+
+nav ul {
+  display: flex;
+  gap: 0.75rem;
+  list-style: none;
+  padding-inline-start: 0;
+  margin: 0.5rem 0 1rem;
+  font-size: 0.85rem;
+}
+
+nav a {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  background: var(--base01);
+  color: var(--base05);
+  border: 1px solid var(--base03);
+  padding: 0.4rem 0.9rem;
+  min-height: 2.75rem; /* AAA-minded touch target, matches button */
+}
+
+nav a:hover {
+  border-color: var(--base09);
+  color: var(--base09);
+}
+
+span[aria-hidden="true"] {
+  color: var(--base08); /* the required-field asterisk */
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-block-end: 0.2rem;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 0.35rem;
+  border: 1px solid var(--base02);
+  border-radius: 0;
+  background: var(--base01);
+  color: var(--base05);
+  accent-color: var(--base09);
+}
+
+textarea {
+  field-sizing: content;
+  min-height: 8rem;
+}
+
+:focus-visible {
+  outline: 2px solid var(--base09);
+  outline-offset: 1px;
+}
+
+button {
+  background: var(--base01);
+  color: var(--base05);
+  border: 1px solid var(--base03);
+  border-radius: 0;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  min-height: 2.75rem; /* AAA-minded touch target, even in a dense layout */
+}
+
+button:hover {
+  border-color: var(--base09);
+}
+
+output {
+  display: block;
+  margin-block-start: 0.75rem;
+  word-break: break-all;
+}
+
+output:not(:empty) {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--base02);
+}
+
+output div {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-block: 0.25rem;
+}
+
+output input {
+  width: auto;
+  flex: 1;
+  background: var(--base00);
+}
+
+output [role="status"] {
+  color: var(--base0B);
+  font-size: 0.85rem;
+}
+
+pre {
+  border: 1px solid var(--base02);
+  padding: 0.75rem;
+  overflow-x: auto;
+  background: var(--base01);
+}
+
+#paste-content,
+#paste-preview,
+#view-code {
+  font-family: ui-monospace, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Small/optional fields as a compact row up top, so the content box below
+   can dominate the page -- that's the actual point of this form. */
+#paste-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-block-end: 1.5rem;
+}
+
+#paste-options p {
+  flex: 1 1 9rem;
+  margin: 0;
+}
+
+#paste-editor {
+  margin-block-end: 1.5rem;
+}
+
+#paste-editor textarea:not([hidden]) {
+  display: block;
+  field-sizing: fixed; /* override the global auto-fit-to-content default -- this one needs a fixed floor */
+  height: max(500px, 60vh);
+  min-height: max(500px, 60vh);
+}
+
+#paste-preview-toggle {
+  margin-block-end: 0.5rem;
+}
+
+#paste-preview {
+  margin-block-start: 0.5rem;
+  min-height: max(500px, 60vh);
+}
+
+#paste-form > button[type="submit"] {
+  margin-block-start: 0.5rem;
+}
+
+#view-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#view-actions code {
+  font-family: ui-monospace, monospace;
+}
+
+footer {
+  margin-block-start: 1.5rem;
+  border-block-start: 1px solid var(--base02);
+  padding-block-start: 0.5rem;
+  color: var(--base03);
+  font-size: 0.8rem;
+}

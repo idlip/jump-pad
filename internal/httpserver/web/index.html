@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jump-pad</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/vendor/highlight.min.css">
+</head>
+<body>
+<nav aria-label="Main">
+  <ul>
+    <li><a href="/new-redirect">New redirect</a></li>
+    <li><a href="/new-paste">New paste</a></li>
+  </ul>
+</nav>
+
+<main>
+  <section id="landing">
+    <h2>What this does</h2>
+    <p>Two things: shorten a URL into a memorable slug, or store a piece of text and get a link back. Both can expire on a schedule you choose, or last forever.</p>
+    <ul>
+      <li><a href="/new-redirect">Create a redirect</a> -- pick a slug, give it a target URL.</li>
+      <li><a href="/new-paste">Create a paste</a> -- paste text, pick a language for highlighting, get a link.</li>
+    </ul>
+  </section>
+
+  <section id="new-redirect" hidden>
+    <h2>New redirect</h2>
+    <p id="redirect-required-note">Fields marked <span aria-hidden="true">*</span> are required.</p>
+    <form id="redirect-form">
+      <p>
+        <label for="redirect-slug">Slug <span aria-hidden="true">*</span></label>
+        <input id="redirect-slug" name="slug" required autocomplete="off" aria-describedby="redirect-required-note">
+      </p>
+      <p>
+        <label for="redirect-url">Target URL <span aria-hidden="true">*</span></label>
+        <input id="redirect-url" name="target_url" type="url" inputmode="url" required autocomplete="url" placeholder="https://example.com/page">
+      </p>
+      <p>
+        <label for="redirect-expiry">Expiry</label>
+        <select id="redirect-expiry" name="expiry">
+          <option value="">forever</option>
+          <option value="1d">1 day</option>
+          <option value="1w" selected>1 week</option>
+          <option value="1m">1 month</option>
+          <option value="custom">custom date</option>
+        </select>
+      </p>
+      <p id="redirect-expiry-date-row" hidden>
+        <label for="redirect-expiry-date">Expires on</label>
+        <input id="redirect-expiry-date" type="date">
+      </p>
+      <p id="redirect-token-row">
+        <label for="redirect-token">Auth token</label>
+        <input id="redirect-token" type="password" autocomplete="off">
+      </p>
+      <button type="submit">Create redirect</button>
+    </form>
+    <output id="redirect-result" for="redirect-form" aria-live="polite"></output>
+  </section>
+
+  <section id="new-paste" hidden>
+    <h2>New paste</h2>
+    <p id="paste-required-note">Fields marked <span aria-hidden="true">*</span> are required.</p>
+    <form id="paste-form">
+      <div id="paste-options">
+        <p>
+          <label for="paste-slug">Slug (optional)</label>
+          <input id="paste-slug" name="slug" autocomplete="off">
+        </p>
+        <p>
+          <label for="paste-language">Language</label>
+          <select id="paste-language" name="language">
+            <option value="">plaintext</option>
+            <option value="auto">auto-detect</option>
+            <option value="javascript">JavaScript</option>
+            <option value="python">Python</option>
+            <option value="go">Go</option>
+            <option value="nim">Nim</option>
+            <option value="bash">Shell</option>
+            <option value="json">JSON</option>
+            <option value="html">HTML</option>
+            <option value="css">CSS</option>
+            <option value="c">C</option>
+            <option value="cpp">C++</option>
+            <option value="rust">Rust</option>
+            <option value="sql">SQL</option>
+            <option value="markdown">Markdown</option>
+            <option value="yaml">YAML</option>
+          </select>
+        </p>
+        <p>
+          <label for="paste-expiry">Expiry</label>
+          <select id="paste-expiry" name="expiry">
+            <option value="">forever</option>
+            <option value="1d">1 day</option>
+            <option value="1w" selected>1 week</option>
+            <option value="1m">1 month</option>
+            <option value="custom">custom date</option>
+          </select>
+        </p>
+        <p id="paste-expiry-date-row" hidden>
+          <label for="paste-expiry-date">Expires on</label>
+          <input id="paste-expiry-date" type="date">
+        </p>
+        <p id="paste-token-row">
+          <label for="paste-token">Auth token</label>
+          <input id="paste-token" type="password" autocomplete="off">
+        </p>
+      </div>
+      <p id="paste-editor">
+        <label for="paste-content">Content <span aria-hidden="true">*</span></label>
+        <button type="button" id="paste-preview-toggle" aria-pressed="false">Preview</button>
+        <textarea id="paste-content" name="content" required spellcheck="false" aria-describedby="paste-required-note"></textarea>
+        <pre id="paste-preview" hidden><code id="paste-highlight"></code></pre>
+      </p>
+      <p>
+        <label for="paste-file">Or load from a text/code file</label>
+        <input id="paste-file" type="file" accept="text/*,.md,.txt,.log,.diff,.patch,.py,.go,.nim,.js,.ts,.json,.yml,.yaml,.sh,.c,.cpp,.h,.rs,.sql,.css,.html">
+        <span id="paste-file-status" role="status"></span>
+      </p>
+      <button type="submit">Create paste</button>
+    </form>
+    <output id="paste-result" for="paste-form" aria-live="polite"></output>
+  </section>
+
+  <section id="view-paste" hidden>
+    <h2>Paste</h2>
+    <p id="view-status" role="status"></p>
+    <p id="view-actions" hidden>
+      <button type="button" id="view-copy">Copy</button>
+      <a id="view-raw-link" href="">Raw</a>
+      <span>-- the raw link works with curl too: <code>curl &lt;link&gt;</code></span>
+    </p>
+    <pre><code id="view-code"></code></pre>
+  </section>
+</main>
+
+<footer>
+  <p>Source, config, and self-hosting notes: see the project README.</p>
+</footer>
+
+<script src="/static/config.js"></script>
+<script src="/static/vendor/highlight.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
