@@ -93,6 +93,48 @@ function wirePastePreviewToggle() {
     toggle.setAttribute("aria-pressed", editing ? "true" : "false");
   });
 }
+
+// wirePasteFileUpload loads a chosen text/code file into the content textarea, rejecting binaries and oversized files.
+function wirePasteFileUpload() {
+  const input = document.getElementById("paste-file");
+  const status = document.getElementById("paste-file-status");
+  const textarea = document.getElementById("paste-content");
+
+  input.addEventListener("change", async () => {
+    const file = input.files[0];
+    status.textContent = "";
+    if (!file) return;
+
+    if (file.size > maxPasteBytes) {
+      status.textContent = "Error: file is over the 500KB paste limit.";
+      input.value = "";
+      return;
+    }
+
+    const text = await file.text();
+    if (looksBinary(text)) {
+      status.textContent = "Error: that looks like a binary file -- only text/code files are supported.";
+      input.value = "";
+      return;
+    }
+
+    textarea.value = text;
+    status.textContent = "Loaded " + file.name + " (" + text.length + " chars).";
+  });
+}
+
+// looksBinary flags a NUL byte or a high ratio of non-printable control characters in a sample of text.
+function looksBinary(text) {
+  if (text.includes(String.fromCharCode(0))) return true;
+  const sampleLen = Math.min(text.length, 2000);
+  let nonPrintable = 0;
+  for (let i = 0; i < sampleLen; i++) {
+    const code = text.charCodeAt(i);
+    if (code < 32 && code !== 9 && code !== 10 && code !== 13) nonPrintable++;
+  }
+  return sampleLen > 0 && nonPrintable / sampleLen > 0.01;
+}
+
 // loadPaste fetches a raw paste by id, renders it highlighted, and wires the copy/raw controls.
 async function loadPaste(id) {
   const status = document.getElementById("view-status");
