@@ -1,0 +1,13 @@
+[Unit]
+Description=jump-pad redirector + pastebin
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/jump-pad -config /etc/jump-pad/jump-pad.conf
+Restart=on-failure
+DynamicUser=yes
+StateDirectory=jump-pad
+WorkingDirectory=/var/lib/jump-pad
+
+[Install]
+WantedBy=multi-user.target

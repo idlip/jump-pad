@@ -1,0 +1,17 @@
+# Plain key=value, one per line. Everything here is optional
+# keep their built-in default (see internal/config/config.go).
+
+addr = :8080
+db_path = /var/lib/jump-pad/jumppad.db
+auth_token = change-me
+
+# admin_token switches on the admin page at /admin. With no admin_token
+# the admin routes are never registered, and a probe gets a plain 404.
+# It must be at least 16 characters, and it must differ from auth_token.
+# The server refuses to start otherwise. Generate one with:
+#   head -c 24 /dev/urandom | base64
+# admin_token = change-me-to-a-long-random-secret
+
+# web_dir = /var/lib/jump-pad/web
+# redirect_prefix = /r/
+# paste_prefix = /p/
