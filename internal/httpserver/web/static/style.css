@@ -255,3 +255,42 @@ footer {
   color: var(--base03);
   font-size: 0.8rem;
 }
+/* Appearance controls: a theme toggle and an accent picker, on the title
+   line. The palette uses light-dark(), so app.js flips one color-scheme
+   value on :root, and the accent picker overrides --base09 alone. */
+
+#header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+#appearance {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+#appearance label {
+  display: inline;
+  margin: 0;
+  font-weight: normal;
+  color: var(--base03);
+}
+
+#appearance button {
+  min-height: 1.9rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+#appearance input[type="color"] {
+  width: 2.4rem;
+  height: 1.9rem;
+  padding: 0.1rem;
+  cursor: pointer;
+}

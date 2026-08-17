@@ -9,6 +9,7 @@ wirePasteFileUpload();
 wireExpiryCustomDate("redirect-expiry", "redirect-expiry-date-row");
 wireExpiryCustomDate("paste-expiry", "paste-expiry-date-row");
 hideTokenFieldsIfUnneeded();
+initAppearance();
 
 const maxPasteBytes = 500 * 1024; // must match the backend's cap
 
@@ -234,4 +235,103 @@ function renderLinkRow(out, url, label, hint) {
     hintRow.textContent = hint;
     out.append(hintRow);
   }
+}
+// ---- Appearance: theme and accent ----------------------------------------
+// The palette already uses light-dark(), so a theme change is one
+// color-scheme swap on the root element, and no second palette exists. The
+// accent is --base09, so the picker overrides one custom property. Both
+// choices live in localStorage. The first visit follows the operating
+// system, and the first click pins a theme from then on.
+
+// defaultAccent is the base16-default orange that style.css ships with.
+function defaultAccent() {
+  return "#dc9656";
+}
+
+// initAppearance applies the stored choices, then wires the three controls.
+function initAppearance() {
+  applyStoredTheme();
+  applyStoredAccent();
+
+  document.getElementById("theme-toggle").addEventListener("click", () => {
+    setTheme(currentTheme() === "dark" ? "light" : "dark");
+  });
+  document.getElementById("accent-color").addEventListener("input", (event) => {
+    setAccent(event.target.value);
+  });
+  document.getElementById("accent-reset").addEventListener("click", resetAccent);
+
+  watchSystemTheme();
+}
+
+// currentTheme returns the pinned theme, or the one the system asks for.
+function currentTheme() {
+  const pinned = localStorage.getItem("jumppad-theme");
+  if (pinned === "dark" || pinned === "light") return pinned;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+// applyStoredTheme pins the stored theme. With nothing stored it leaves
+// the stylesheet to follow the system, and only labels the button.
+function applyStoredTheme() {
+  const pinned = localStorage.getItem("jumppad-theme");
+  if (pinned === "dark" || pinned === "light") {
+    applyTheme(pinned);
+    return;
+  }
+  labelThemeToggle(currentTheme());
+}
+
+// setTheme pins a theme for every later visit on this browser.
+function setTheme(theme) {
+  localStorage.setItem("jumppad-theme", theme);
+  applyTheme(theme);
+}
+
+// applyTheme swaps color-scheme on the root element, which flips every
+// light-dark() color at once.
+function applyTheme(theme) {
+  document.documentElement.style.colorScheme = theme;
+  labelThemeToggle(theme);
+}
+
+// labelThemeToggle names the theme that a click switches to, so the button
+// says what it does and not what the page already is.
+function labelThemeToggle(theme) {
+  const toggle = document.getElementById("theme-toggle");
+  const other = theme === "dark" ? "light" : "dark";
+  toggle.textContent = other === "dark" ? "Dark" : "Light";
+  toggle.setAttribute("aria-label", "Switch to the " + other + " theme");
+  toggle.title = "Switch to the " + other + " theme";
+}
+
+// watchSystemTheme keeps the button label right while no theme is pinned
+// and the system flips, for example at sunset.
+function watchSystemTheme() {
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (!localStorage.getItem("jumppad-theme")) labelThemeToggle(currentTheme());
+  });
+}
+
+// applyStoredAccent overrides --base09 with the stored color, and fills
+// the picker either way.
+function applyStoredAccent() {
+  const picker = document.getElementById("accent-color");
+  const stored = localStorage.getItem("jumppad-accent");
+  picker.value = stored || defaultAccent();
+  if (stored) document.documentElement.style.setProperty("--base09", stored);
+}
+
+// setAccent stores one color and applies it to links, buttons, and the
+// focus ring, which are the three places --base09 reaches.
+function setAccent(color) {
+  localStorage.setItem("jumppad-accent", color);
+  document.documentElement.style.setProperty("--base09", color);
+}
+
+// resetAccent drops back to the color that the stylesheet ships with.
+function resetAccent() {
+  localStorage.removeItem("jumppad-accent");
+  document.documentElement.style.removeProperty("--base09");
+  document.getElementById("accent-color").value = defaultAccent();
 }
