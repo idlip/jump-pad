@@ -40,6 +40,34 @@ func Migrate(db *sql.DB, steps ...func(*sql.DB) error) error {
 	return nil
 }
 
+// EnsureColumn adds a column when a table does not have it yet. CREATE
+// TABLE IF NOT EXISTS does nothing for a table that already exists, so
+// every new column needs this.
+func EnsureColumn(db *sql.DB, table, column, ddl string) error {
+	rows, err := db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&id, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return err
+		}
+		if name == column {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	_, err = db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, column, ddl))
+	return err
+}
 // InsertWithCollisionRetry tries base, then base-2 up to base-20, and
 // stops at the first candidate that does not hit a UNIQUE collision.
 func InsertWithCollisionRetry(base string, insert func(candidate string) error) (string, error) {
