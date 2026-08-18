@@ -56,6 +56,25 @@ func TestCreateCustomSlugCollision(t *testing.T) {
 		t.Fatalf("second Create = %q, %v, want notes-2", second, err)
 	}
 }
+
+func TestMigrateAddsLanguageColumnToOldDatabase(t *testing.T) {
+	db, err := sqlite.Open(":memory:")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	// A database from before the language column existed.
+	if _, err := db.Exec(`CREATE TABLE pastes (id TEXT PRIMARY KEY, content TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER)`); err != nil {
+		t.Fatalf("seed the old schema: %v", err)
+	}
+
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	if _, err := Create(db, Input{Content: "hi", Language: "python"}, time.Now()); err != nil {
+		t.Fatalf("Create after Migrate: %v", err)
+	}
+}
 func TestCreateRefusesEmptyContent(t *testing.T) {
 	db := openTest(t)
 	if _, err := Create(db, Input{}, time.Now()); !errors.Is(err, api.ErrInvalid) {
