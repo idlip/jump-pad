@@ -38,3 +38,22 @@ func RequireToken(token string, h http.HandlerFunc) http.HandlerFunc {
 func hasCreateToken(r *http.Request, token string) bool {
 	return Equal(r.Header.Get("X-Auth-Token"), token) || Equal(r.URL.Query().Get("token"), token)
 }
+
+// RequireAdmin guards an admin route. The token arrives in the header
+// only, because a token in a URL reaches proxy logs, browser history, and
+// the Referer header. An empty token answers 404, although the server does
+// not register the admin routes in that case.
+func RequireAdmin(token string, h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if token == "" {
+			http.NotFound(w, r)
+			return
+		}
+		if Equal(r.Header.Get("X-Auth-Token"), token) {
+			h(w, r)
+			return
+		}
+		time.Sleep(FailDelay)
+		api.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+	}
+}

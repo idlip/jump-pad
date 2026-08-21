@@ -153,6 +153,37 @@ func fillFromForm(r *http.Request, v any) error {
 	}
 	return nil
 }
+
+// Handler decodes a request body into T, calls fn, and writes the result
+// or the mapped error. A handler therefore holds only its own logic.
+func Handler[T any](fn func(r *http.Request, in T) (any, int, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var in T
+		if err := Decode(r, &in); err != nil {
+			WriteError(w, err)
+			return
+		}
+		body, status, err := fn(r, in)
+		if err != nil {
+			WriteError(w, err)
+			return
+		}
+		WriteJSON(w, status, body)
+	}
+}
+
+// Handle is Handler for a route that reads no request body.
+func Handle(fn func(r *http.Request) (any, int, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body, status, err := fn(r)
+		if err != nil {
+			WriteError(w, err)
+			return
+		}
+		WriteJSON(w, status, body)
+	}
+}
+
 // LimitBody caps a request body before a handler reads it.
 func LimitBody(max int64, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
