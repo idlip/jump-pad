@@ -93,4 +93,15 @@ func TestExpiry(t *testing.T) {
 	}
 }
 
-
+func TestReserve(t *testing.T) {
+	if IsReserved("coupons") {
+		t.Fatal("coupons is reserved before Reserve ran")
+	}
+	Reserve("coupons")
+	if !IsReserved("coupons") {
+		t.Fatal("coupons is not reserved after Reserve ran")
+	}
+	if _, err := Slug("coupons"); err == nil {
+		t.Fatal("Slug(coupons): want an error after Reserve ran")
+	}
+}
