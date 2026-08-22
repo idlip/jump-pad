@@ -68,6 +68,27 @@ func EnsureColumn(db *sql.DB, table, column, ddl string) error {
 	_, err = db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, column, ddl))
 	return err
 }
+
+// QueryRows runs query and collects one value per row with scan. It saves
+// every list function the same rows, defer, scan, and error handling.
+func QueryRows[T any](db *sql.DB, query string, scan func(*sql.Rows) (T, error), args ...any) ([]T, error) {
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var all []T
+	for rows.Next() {
+		one, err := scan(rows)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, one)
+	}
+	return all, rows.Err()
+}
+
 // InsertWithCollisionRetry tries base, then base-2 up to base-20, and
 // stops at the first candidate that does not hit a UNIQUE collision.
 func InsertWithCollisionRetry(base string, insert func(candidate string) error) (string, error) {

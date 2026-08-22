@@ -77,6 +77,32 @@ func Create(db *sql.DB, in Input, now time.Time) (string, error) {
 		return err
 	})
 }
+
+// Update replaces the row at oldID. A new id is allowed, and a taken new
+// id returns api.ErrSlugTaken.
+func Update(db *sql.DB, oldID string, in Input, now time.Time) error {
+	expiresAt, err := check(in, now)
+	if err != nil {
+		return err
+	}
+	id, err := valid.Slug(in.Slug)
+	if err != nil {
+		return err
+	}
+
+	result, err := db.Exec(
+		"UPDATE pastes SET id = ?, content = ?, language = ?, expires_at = ? WHERE id = ?",
+		id, in.Content, in.Language, expiresAt, oldID,
+	)
+	if sqlite.IsUniqueViolation(err) {
+		return api.ErrSlugTaken
+	}
+	if err != nil {
+		return err
+	}
+	return oneRow(result)
+}
+
 // Get returns the row as stored, with no expiry check. The admin edits an
 // expired row through this function.
 func Get(db *sql.DB, id string) (Paste, error) {
@@ -104,6 +130,29 @@ func Lookup(db *sql.DB, id string, now time.Time) (content, language string, err
 	}
 	return one.Content, one.Language, nil
 }
+
+// List returns every row without its content, newest first.
+func List(db *sql.DB) ([]Paste, error) {
+	return sqlite.QueryRows(db,
+		"SELECT id, created_at, expires_at, language FROM pastes ORDER BY created_at DESC",
+		func(rows *sql.Rows) (Paste, error) {
+			var one Paste
+			var language sql.NullString
+			err := rows.Scan(&one.ID, &one.CreatedAt, &one.ExpiresAt, &language)
+			one.Language = language.String
+			return one, err
+		})
+}
+
+// Delete removes one row.
+func Delete(db *sql.DB, id string) error {
+	result, err := db.Exec("DELETE FROM pastes WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+	return oneRow(result)
+}
+
 // check validates the fields that Create and Update share.
 func check(in Input, now time.Time) (*int64, error) {
 	if in.Content == "" {

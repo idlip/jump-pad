@@ -18,6 +18,9 @@ import (
 	"jump-pad/internal/valid"
 )
 
+// adminToken is long enough to pass config.Validate.
+const adminToken = "admin-token-0123456789"
+
 // newServer returns a server over a fresh migrated in-memory database.
 func newServer(t *testing.T, cfg config.Config) *Server {
 	t.Helper()
@@ -39,6 +42,14 @@ func newPublicServer(t *testing.T, token string) http.Handler {
 	t.Helper()
 	cfg := config.Defaults()
 	cfg.AuthToken = token
+	return newServer(t, cfg).Routes()
+}
+
+// newAdminServer returns a server with the admin routes registered.
+func newAdminServer(t *testing.T) http.Handler {
+	t.Helper()
+	cfg := config.Defaults()
+	cfg.AdminToken = adminToken
 	return newServer(t, cfg).Routes()
 }
 
@@ -175,3 +186,169 @@ func TestCreateRequiresToken(t *testing.T) {
 		t.Fatalf("with a token = %d, want 200", recorder.Code)
 	}
 }
+
+func TestAdminRoutesDoNotExistWithoutAToken(t *testing.T) {
+	h := newPublicServer(t, "")
+
+	if code := send(t, h, "GET", "/admin/api/items", "", "").Code; code != http.StatusNotFound {
+		t.Fatalf("admin list with no admin_token = %d, want 404", code)
+	}
+	if code := send(t, h, "GET", "/admin", "", "").Code; code != http.StatusOK {
+		t.Fatalf("the admin page itself = %d, want 200", code)
+	}
+}
+
+func TestAdminRequiresTheAdminToken(t *testing.T) {
+	h := newAdminServer(t)
+
+	if code := send(t, h, "GET", "/admin/api/items", "", "").Code; code != http.StatusUnauthorized {
+		t.Fatalf("no token = %d, want 401", code)
+	}
+	if code := send(t, h, "GET", "/admin/api/items", "", "wrong-token-0123456789").Code; code != http.StatusUnauthorized {
+		t.Fatalf("wrong token = %d, want 401", code)
+	}
+	recorder := send(t, h, "GET", "/admin/api/items", "", adminToken)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("right token = %d, want 200", recorder.Code)
+	}
+	if recorder.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", recorder.Header().Get("Cache-Control"))
+	}
+}
+
+func TestAdminAddEditAndRemoveARedirect(t *testing.T) {
+	h := newAdminServer(t)
+
+	added := send(t, h, "POST", "/admin/api/redirects", `{"slug":"docs","target_url":"https://a.example"}`, adminToken)
+	if added.Code != http.StatusCreated {
+		t.Fatalf("add = %d %q, want 201", added.Code, added.Body.String())
+	}
+
+	edited := send(t, h, "PUT", "/admin/api/redirects/docs", `{"slug":"guide","target_url":"https://b.example","expiry":"1d"}`, adminToken)
+	if edited.Code != http.StatusNoContent {
+		t.Fatalf("edit = %d %q, want 204", edited.Code, edited.Body.String())
+	}
+
+	var items admin.Items
+	listed := send(t, h, "GET", "/admin/api/items", "", adminToken)
+	if err := json.Unmarshal(listed.Body.Bytes(), &items); err != nil {
+		t.Fatalf("decode the list: %v", err)
+	}
+	if len(items.Redirects) != 1 || items.Redirects[0].Slug != "guide" {
+		t.Fatalf("list = %+v, want one row named guide", items.Redirects)
+	}
+
+	if code := send(t, h, "DELETE", "/admin/api/redirects/guide", "", adminToken).Code; code != http.StatusNoContent {
+		t.Fatalf("remove = %d, want 204", code)
+	}
+	if code := send(t, h, "DELETE", "/admin/api/redirects/guide", "", adminToken).Code; code != http.StatusNotFound {
+		t.Fatalf("second remove = %d, want 404", code)
+	}
+}
+
+func TestAdminRenameToATakenSlug(t *testing.T) {
+	h := newAdminServer(t)
+	for _, slug := range []string{"docs", "notes"} {
+		send(t, h, "POST", "/admin/api/redirects", `{"slug":"`+slug+`","target_url":"https://example.com"}`, adminToken)
+	}
+
+	recorder := send(t, h, "PUT", "/admin/api/redirects/notes", `{"slug":"docs","target_url":"https://example.com"}`, adminToken)
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("rename to a taken slug = %d, want 409", recorder.Code)
+	}
+	if !strings.Contains(recorder.Body.String(), `"error"`) {
+		t.Fatalf("body = %q, want a JSON error object", recorder.Body.String())
+	}
+}
+
+func TestAdminReadsAndEditsAnExpiredPaste(t *testing.T) {
+	h := newAdminServer(t)
+	added := send(t, h, "POST", "/admin/api/pastes", `{"slug":"stale","content":"old text","expiry":"-1h"}`, adminToken)
+	if added.Code != http.StatusCreated {
+		t.Fatalf("add = %d %q", added.Code, added.Body.String())
+	}
+
+	// The public route refuses an expired paste.
+	if code := send(t, h, "GET", "/pastes/stale", "", "").Code; code != http.StatusGone {
+		t.Fatalf("public read = %d, want 410", code)
+	}
+
+	// The admin route reads it, so the content is editable as it stands.
+	read := send(t, h, "GET", "/admin/api/pastes/stale", "", adminToken)
+	if read.Code != http.StatusOK || !strings.Contains(read.Body.String(), "old text") {
+		t.Fatalf("admin read = %d %q", read.Code, read.Body.String())
+	}
+
+	edited := send(t, h, "PUT", "/admin/api/pastes/stale", `{"slug":"stale","content":"new text","expiry":"1w"}`, adminToken)
+	if edited.Code != http.StatusNoContent {
+		t.Fatalf("edit = %d %q", edited.Code, edited.Body.String())
+	}
+	if body := send(t, h, "GET", "/pastes/stale", "", "").Body.String(); body != "new text" {
+		t.Fatalf("public read after the edit = %q", body)
+	}
+}
+
+func TestAdminRefusesInvalidInput(t *testing.T) {
+	h := newAdminServer(t)
+
+	recorder := send(t, h, "POST", "/admin/api/redirects", `{"slug":"docs","target_url":"https://idlip"}`, adminToken)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("a host with no dot = %d, want 400", recorder.Code)
+	}
+	if code := send(t, h, "PUT", "/admin/api/redirects/missing", `{"slug":"missing","target_url":"https://example.com"}`, adminToken).Code; code != http.StatusNotFound {
+		t.Fatalf("edit of a missing row = %d, want 404", code)
+	}
+}
+
+func TestEveryRouteCarriesASummary(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.AdminToken = adminToken
+	for _, route := range newServer(t, cfg).RouteTable() {
+		if strings.TrimSpace(route.Summary) == "" {
+			t.Errorf("route %s %s has no summary, so it cannot be documented", route.Method, route.Pattern)
+		}
+		if route.Handler == nil {
+			t.Errorf("route %s %s has no handler", route.Method, route.Pattern)
+		}
+	}
+}
+
+func TestEveryLiteralRouteNameIsReserved(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.AdminToken = adminToken
+	for _, route := range newServer(t, cfg).RouteTable() {
+		name := firstSegment(route.Pattern)
+		if name == "" || strings.HasPrefix(name, "{") {
+			continue
+		}
+		if !valid.IsReserved(name) {
+			t.Errorf("route %s %s owns the name %q, and a slug can still take it", route.Method, route.Pattern, name)
+		}
+	}
+}
+
+// firstSegment returns the first path segment of a route pattern.
+func firstSegment(pattern string) string {
+	return strings.Split(strings.TrimPrefix(pattern, "/"), "/")[0]
+}
+
+func TestSecurityHeaders(t *testing.T) {
+	recorder := send(t, newAdminServer(t), "GET", "/admin", "", "")
+	if recorder.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q", recorder.Header().Get("X-Content-Type-Options"))
+	}
+	if !strings.Contains(recorder.Header().Get("Content-Security-Policy"), "frame-ancestors 'none'") {
+		t.Fatalf("Content-Security-Policy = %q", recorder.Header().Get("Content-Security-Policy"))
+	}
+}
+
+func TestStatusForUnknownError(t *testing.T) {
+	if got := api.StatusFor(errUnknown{}); got != http.StatusInternalServerError {
+		t.Fatalf("StatusFor(unknown) = %d, want 500", got)
+	}
+}
+
+// errUnknown stands for a fault that no sentinel covers.
+type errUnknown struct{}
+
+func (errUnknown) Error() string { return "some database fault" }

@@ -59,6 +59,29 @@ func Create(db *sql.DB, in Input, now time.Time) (string, error) {
 		return err
 	})
 }
+
+// Update replaces the row at oldSlug. A new slug is allowed, and a taken
+// new slug returns api.ErrSlugTaken instead of a suffixed name, because an
+// admin who types a name means that name.
+func Update(db *sql.DB, oldSlug string, in Input, now time.Time) error {
+	slug, targetURL, expiresAt, err := check(in, now)
+	if err != nil {
+		return err
+	}
+
+	result, err := db.Exec(
+		"UPDATE redirects SET slug = ?, target_url = ?, expires_at = ? WHERE slug = ?",
+		slug, targetURL, expiresAt, oldSlug,
+	)
+	if sqlite.IsUniqueViolation(err) {
+		return api.ErrSlugTaken
+	}
+	if err != nil {
+		return err
+	}
+	return oneRow(result)
+}
+
 // Get returns the row as stored, with no expiry check. The admin edits an
 // expired row through this function.
 func Get(db *sql.DB, slug string) (Redirect, error) {
@@ -84,6 +107,42 @@ func Lookup(db *sql.DB, slug string, now time.Time) (string, error) {
 	}
 	return one.TargetURL, nil
 }
+
+// List returns every row, newest first.
+func List(db *sql.DB) ([]Redirect, error) {
+	return sqlite.QueryRows(db,
+		"SELECT slug, target_url, created_at, expires_at FROM redirects ORDER BY created_at DESC",
+		func(rows *sql.Rows) (Redirect, error) {
+			var one Redirect
+			err := rows.Scan(&one.Slug, &one.TargetURL, &one.CreatedAt, &one.ExpiresAt)
+			return one, err
+		})
+}
+
+// Delete removes one row.
+func Delete(db *sql.DB, slug string) error {
+	result, err := db.Exec("DELETE FROM redirects WHERE slug = ?", slug)
+	if err != nil {
+		return err
+	}
+	return oneRow(result)
+}
+
+// check validates every field of an input and returns the stored forms.
+// Create and Update share it, so the two cannot drift apart.
+func check(in Input, now time.Time) (slug, targetURL string, expiresAt *int64, err error) {
+	if slug, err = valid.Slug(in.Slug); err != nil {
+		return "", "", nil, err
+	}
+	if targetURL, err = valid.TargetURL(in.TargetURL); err != nil {
+		return "", "", nil, err
+	}
+	if expiresAt, err = valid.Expiry(in.Expiry, now); err != nil {
+		return "", "", nil, err
+	}
+	return slug, targetURL, expiresAt, nil
+}
+
 // oneRow turns "no row matched" into api.ErrNotFound.
 func oneRow(result sql.Result) error {
 	changed, err := result.RowsAffected()

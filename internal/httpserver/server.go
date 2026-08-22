@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 
+	"jump-pad/internal/admin"
 	"jump-pad/internal/api"
 	"jump-pad/internal/auth"
 	"jump-pad/internal/config"
@@ -60,6 +61,7 @@ func (s *Server) RouteTable() []api.Route {
 		s.pageRoute("/new-redirect", "Serve the redirect creation form."),
 		s.pageRoute("/new-paste", "Serve the paste creation form."),
 		s.pageRoute("/view/{id}", "Serve the highlighted read page for a paste."),
+		s.pageRoute("/admin", "Serve the admin page. The page itself is public, and its API needs the admin token."),
 		{
 			Method:  "GET",
 			Pattern: "/static/config.js",
@@ -78,6 +80,9 @@ func (s *Server) RouteTable() []api.Route {
 
 	routes = append(routes, redirect.Routes(s.db, s.redirectPrefix)...)
 	routes = append(routes, paste.Routes(s.db, s.pastePrefix)...)
+	if s.cfg.AdminToken != "" {
+		routes = append(routes, admin.Routes(s.db)...)
+	}
 	return routes
 }
 
@@ -179,6 +184,7 @@ func (s *Server) staticConfig(w http.ResponseWriter, r *http.Request) {
 		"redirectPrefix": s.redirectPrefix,
 		"pastePrefix":    s.pastePrefix,
 		"authRequired":   s.cfg.AuthToken != "",
+		"adminEnabled":   s.cfg.AdminToken != "",
 	})
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	fmt.Fprintf(w, "window.JUMPPAD_CONFIG = %s;\n", settings)
