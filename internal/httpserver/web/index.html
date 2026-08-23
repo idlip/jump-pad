@@ -25,6 +25,7 @@
   <ul>
     <li><a href="/new-redirect">New redirect</a></li>
     <li><a href="/new-paste">New paste</a></li>
+    <li id="nav-admin" hidden><a href="/admin">Admin</a></li>
   </ul>
 </nav>
 
@@ -147,6 +148,87 @@
       <span>-- the raw link works with curl too: <code>curl &lt;link&gt;</code></span>
     </p>
     <pre><code id="view-code"></code></pre>
+  </section>
+
+  <section id="admin" hidden>
+    <h2>Admin</h2>
+    <p id="admin-status" role="status"></p>
+
+    <form id="admin-auth">
+      <p>
+        <label for="admin-token">Admin token</label>
+        <input id="admin-token" type="password" autocomplete="off" required>
+      </p>
+      <button type="submit">Load</button>
+    </form>
+
+    <div id="admin-tables" hidden>
+      <p id="admin-controls">
+        <label for="admin-show-expired"><input id="admin-show-expired" type="checkbox"> Show expired rows</label>
+        <button type="button" id="admin-reload">Reload</button>
+        <button type="button" id="admin-forget">Forget token</button>
+      </p>
+
+      <h3>Redirects <button type="button" id="admin-add-redirect">Add redirect</button></h3>
+      <table id="admin-redirects">
+        <thead>
+          <tr>
+            <th scope="col" data-sort="slug" tabindex="0">Slug</th>
+            <th scope="col" data-sort="target_url" tabindex="0">Target</th>
+            <th scope="col" data-sort="created_at" tabindex="0">Created</th>
+            <th scope="col" data-sort="expires_at" tabindex="0">Expires</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <h3>Pastes <button type="button" id="admin-add-paste">Add paste</button></h3>
+      <table id="admin-pastes">
+        <thead>
+          <tr>
+            <th scope="col" data-sort="id" tabindex="0">Id</th>
+            <th scope="col" data-sort="language" tabindex="0">Language</th>
+            <th scope="col" data-sort="created_at" tabindex="0">Created</th>
+            <th scope="col" data-sort="expires_at" tabindex="0">Expires</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <dialog id="admin-dialog">
+      <form id="admin-form">
+        <h3 id="admin-dialog-title">Edit</h3>
+        <p>
+          <label for="admin-field-slug">Slug</label>
+          <input id="admin-field-slug" autocomplete="off">
+        </p>
+        <p id="admin-row-target">
+          <label for="admin-field-target">Target URL</label>
+          <input id="admin-field-target" type="url" inputmode="url" placeholder="https://example.com/page">
+        </p>
+        <p id="admin-row-language">
+          <label for="admin-field-language">Language</label>
+          <input id="admin-field-language" autocomplete="off" placeholder="python">
+        </p>
+        <p>
+          <label for="admin-field-expiry">Expiry</label>
+          <input id="admin-field-expiry" autocomplete="off" placeholder="empty = forever" aria-describedby="admin-expiry-hint">
+          <span id="admin-expiry-hint">Empty means forever. Also takes 1d, 1w, 1m, a date such as 2027-01-01, or a duration such as 72h.</span>
+        </p>
+        <p id="admin-row-content">
+          <label for="admin-field-content">Content</label>
+          <textarea id="admin-field-content" spellcheck="false"></textarea>
+        </p>
+        <p id="admin-dialog-error" role="alert"></p>
+        <p id="admin-dialog-actions">
+          <button type="submit">Save</button>
+          <button type="button" id="admin-dialog-cancel">Cancel</button>
+        </p>
+      </form>
+    </dialog>
   </section>
 </main>
 

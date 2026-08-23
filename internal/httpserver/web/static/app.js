@@ -9,6 +9,7 @@ wirePasteFileUpload();
 wireExpiryCustomDate("redirect-expiry", "redirect-expiry-date-row");
 wireExpiryCustomDate("paste-expiry", "paste-expiry-date-row");
 hideTokenFieldsIfUnneeded();
+showAdminLink();
 initAppearance();
 
 const maxPasteBytes = 500 * 1024; // must match the backend's cap
@@ -76,6 +77,7 @@ function wirePasteForm() {
     }
   });
 }
+
 // wirePastePreviewToggle swaps the paste textarea for a highlighted read-only preview, and back.
 function wirePastePreviewToggle() {
   const toggle = document.getElementById("paste-preview-toggle");
@@ -236,6 +238,325 @@ function renderLinkRow(out, url, label, hint) {
     out.append(hintRow);
   }
 }
+
+// ---- Admin page ----------------------------------------------------------
+// One table per item type, one dialog for both add and edit. The token
+// lives in sessionStorage, so a reload keeps it and closing the tab drops
+// it. No function below holds module level state: initAdmin builds one
+// state object and passes it in, which keeps the page reloadable.
+
+// showAdminLink reveals the Admin link when the server has an admin token.
+function showAdminLink() {
+  if (window.JUMPPAD_CONFIG.adminEnabled) {
+    document.getElementById("nav-admin").hidden = false;
+  }
+}
+
+// adminToken reads the token that this tab holds.
+function adminToken() {
+  return sessionStorage.getItem("jumppad-admin-token") || "";
+}
+
+// initAdmin wires the token form, the two tables, and the dialog.
+function initAdmin() {
+  const status = document.getElementById("admin-status");
+  if (!window.JUMPPAD_CONFIG.adminEnabled) {
+    status.textContent = "The admin page is off. Set admin_token in the server configuration to switch it on.";
+    document.getElementById("admin-auth").hidden = true;
+    return;
+  }
+
+  const state = { redirects: [], pastes: [], sort: { redirects: null, pastes: null } };
+
+  document.getElementById("admin-auth").addEventListener("submit", (event) => {
+    event.preventDefault();
+    sessionStorage.setItem("jumppad-admin-token", document.getElementById("admin-token").value);
+    loadAdminItems(state);
+  });
+  document.getElementById("admin-reload").addEventListener("click", () => loadAdminItems(state));
+  document.getElementById("admin-forget").addEventListener("click", () => {
+    sessionStorage.removeItem("jumppad-admin-token");
+    location.reload();
+  });
+  document.getElementById("admin-show-expired").addEventListener("change", () => renderAdminTables(state));
+  document.getElementById("admin-add-redirect").addEventListener("click", () => openAdminDialog("redirect", null));
+  document.getElementById("admin-add-paste").addEventListener("click", () => openAdminDialog("paste", null));
+  document.getElementById("admin-dialog-cancel").addEventListener("click", () => document.getElementById("admin-dialog").close());
+  document.getElementById("admin-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveAdminItem(state);
+  });
+
+  wireAdminSorting(state, "redirects");
+  wireAdminSorting(state, "pastes");
+
+  if (adminToken()) {
+    document.getElementById("admin-token").value = adminToken();
+    loadAdminItems(state);
+  }
+}
+
+// adminRequest sends one admin call with the token in the header. It
+// returns the parsed body, or throws with the message from the server.
+async function adminRequest(method, path, body) {
+  const options = { method, headers: { "X-Auth-Token": adminToken() } };
+  if (body) {
+    options.headers["Content-Type"] = "application/json";
+    options.body = JSON.stringify(body);
+  }
+
+  const res = await fetch(path, options);
+  if (res.status === 204) return null;
+
+  const text = await res.text();
+  const parsed = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new Error(parsed && parsed.error ? parsed.error : res.status + " " + res.statusText);
+  return parsed;
+}
+
+// loadAdminItems reads both tables and renders them.
+async function loadAdminItems(state) {
+  const status = document.getElementById("admin-status");
+  status.textContent = "Loading...";
+  try {
+    const items = await adminRequest("GET", "/admin/api/items");
+    state.redirects = items.redirects || [];
+    state.pastes = items.pastes || [];
+    document.getElementById("admin-auth").hidden = true;
+    document.getElementById("admin-tables").hidden = false;
+    status.textContent = "";
+    renderAdminTables(state);
+  } catch (err) {
+    status.textContent = "Error: " + err.message;
+    document.getElementById("admin-auth").hidden = false;
+    document.getElementById("admin-tables").hidden = true;
+  }
+}
+
+// renderAdminTables redraws both tables from the state.
+function renderAdminTables(state) {
+  renderAdminRows(state, "redirects", ["slug", "target_url", "created_at", "expires_at"]);
+  renderAdminRows(state, "pastes", ["id", "language", "created_at", "expires_at"]);
+}
+
+// renderAdminRows redraws one table body, hiding expired rows unless the
+// checkbox asks for them.
+function renderAdminRows(state, collection, columns) {
+  const table = document.getElementById("admin-" + collection);
+  const body = table.querySelector("tbody");
+  const showExpired = document.getElementById("admin-show-expired").checked;
+  const order = state.sort[collection];
+
+  let rows = state[collection].filter((row) => showExpired || !isExpired(row));
+  if (order) rows = sortAdminRows(rows, order.column, order.ascending);
+
+  body.replaceChildren();
+  for (const row of rows) {
+    const line = document.createElement("tr");
+    if (isExpired(row)) line.setAttribute("data-expired", "true");
+    for (const column of columns) line.append(adminCell(collection, row, column));
+    line.append(adminActions(state, collection, row));
+    body.append(line);
+  }
+
+  const hidden = state[collection].length - rows.length;
+  table.setAttribute("aria-label", collection + ": " + rows.length + " shown, " + hidden + " expired and hidden");
+}
+
+// adminCell builds one table cell. The name cell links to the live item.
+function adminCell(collection, row, column) {
+  const cell = document.createElement("td");
+  const value = row[column];
+
+  if (column === "slug" || column === "id") {
+    const link = document.createElement("a");
+    link.href = collection === "redirects"
+      ? window.JUMPPAD_CONFIG.redirectPrefix + value
+      : "/view/" + value;
+    link.textContent = value;
+    cell.append(link);
+    return cell;
+  }
+
+  if (column === "created_at") {
+    cell.textContent = formatUnix(value);
+    return cell;
+  }
+  if (column === "expires_at") {
+    cell.textContent = value === null ? "forever" : formatUnix(value);
+    if (isExpired(row)) cell.textContent += " (expired)";
+    return cell;
+  }
+
+  cell.textContent = value || "";
+  cell.title = value || "";
+  return cell;
+}
+
+// adminActions builds the Edit and Remove cell for one row.
+function adminActions(state, collection, row) {
+  const cell = document.createElement("td");
+  const kind = collection === "redirects" ? "redirect" : "paste";
+  const name = row.slug || row.id;
+
+  const edit = document.createElement("button");
+  edit.type = "button";
+  edit.textContent = "Edit";
+  edit.addEventListener("click", () => openAdminDialog(kind, row));
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.textContent = "Remove";
+  remove.addEventListener("click", () => removeAdminItem(state, kind, name));
+
+  cell.append(edit, remove);
+  return cell;
+}
+
+// wireAdminSorting makes each marked header sort its own table.
+function wireAdminSorting(state, collection) {
+  const table = document.getElementById("admin-" + collection);
+  for (const header of table.querySelectorAll("th[data-sort]")) {
+    header.addEventListener("click", () => {
+      const column = header.dataset.sort;
+      const order = state.sort[collection];
+      const ascending = !(order && order.column === column && order.ascending);
+      state.sort[collection] = { column, ascending };
+
+      for (const other of table.querySelectorAll("th[data-sort]")) other.removeAttribute("aria-sort");
+      header.setAttribute("aria-sort", ascending ? "ascending" : "descending");
+      renderAdminTables(state);
+    });
+    header.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        header.click();
+      }
+    });
+  }
+}
+
+// sortAdminRows returns a sorted copy, with empty values last.
+function sortAdminRows(rows, column, ascending) {
+  const direction = ascending ? 1 : -1;
+  return [...rows].sort((left, right) => compareAdminValues(left[column], right[column]) * direction);
+}
+
+// compareAdminValues orders two cell values, and keeps an empty value last.
+function compareAdminValues(left, right) {
+  if (left === right) return 0;
+  if (left === null || left === undefined || left === "") return 1;
+  if (right === null || right === undefined || right === "") return -1;
+  return left > right ? 1 : -1;
+}
+
+// isExpired says whether a row is past its expiry time.
+function isExpired(row) {
+  return row.expires_at !== null && row.expires_at !== undefined && row.expires_at * 1000 < Date.now();
+}
+
+// formatUnix shows a unix time in the reader's own locale.
+function formatUnix(seconds) {
+  return new Date(seconds * 1000).toLocaleString();
+}
+
+// openAdminDialog fills the one dialog for the four cases: add or edit, a
+// redirect or a paste. A null row means add.
+function openAdminDialog(kind, row) {
+  const dialog = document.getElementById("admin-dialog");
+  const isPaste = kind === "paste";
+  const name = row ? (row.slug || row.id) : "";
+
+  dialog.dataset.kind = kind;
+  dialog.dataset.original = name;
+  document.getElementById("admin-dialog-title").textContent = (row ? "Edit " : "Add a ") + kind;
+  document.getElementById("admin-dialog-error").textContent = "";
+
+  document.getElementById("admin-row-target").hidden = isPaste;
+  document.getElementById("admin-row-language").hidden = !isPaste;
+  document.getElementById("admin-row-content").hidden = !isPaste;
+  document.getElementById("admin-field-target").required = !isPaste;
+  document.getElementById("admin-field-content").required = isPaste;
+  document.getElementById("admin-field-slug").required = !isPaste || Boolean(row);
+
+  document.getElementById("admin-field-slug").value = name;
+  document.getElementById("admin-field-target").value = row ? (row.target_url || "") : "";
+  document.getElementById("admin-field-language").value = row ? (row.language || "") : "";
+  document.getElementById("admin-field-content").value = "";
+  document.getElementById("admin-field-expiry").value = "";
+  document.getElementById("admin-expiry-hint").textContent = adminExpiryHint(row);
+
+  dialog.showModal();
+  if (isPaste && row) loadAdminPasteContent(row.id);
+}
+
+// adminExpiryHint warns that a save replaces every field, so an empty
+// expiry box means forever, and not "keep what it has now".
+function adminExpiryHint(row) {
+  const rules = "Empty means forever. Also takes 1d, 1w, 1m, a date such as 2027-01-01, or a duration such as 72h.";
+  if (!row) return rules;
+  const now = row.expires_at === null ? "forever" : formatUnix(row.expires_at);
+  return "Now: " + now + ". A save replaces it. " + rules;
+}
+
+// loadAdminPasteContent fills the content box, expired paste included.
+async function loadAdminPasteContent(id) {
+  const field = document.getElementById("admin-field-content");
+  field.value = "Loading...";
+  try {
+    const one = await adminRequest("GET", "/admin/api/pastes/" + encodeURIComponent(id));
+    field.value = one.content || "";
+  } catch (err) {
+    field.value = "";
+    document.getElementById("admin-dialog-error").textContent = "Error reading the content: " + err.message;
+  }
+}
+
+// saveAdminItem sends an add or a full replacement, then reloads the list.
+async function saveAdminItem(state) {
+  const dialog = document.getElementById("admin-dialog");
+  const kind = dialog.dataset.kind;
+  const original = dialog.dataset.original;
+  const error = document.getElementById("admin-dialog-error");
+
+  const body = {
+    slug: document.getElementById("admin-field-slug").value,
+    expiry: document.getElementById("admin-field-expiry").value,
+  };
+  if (kind === "redirect") {
+    body.target_url = document.getElementById("admin-field-target").value;
+  } else {
+    body.content = document.getElementById("admin-field-content").value;
+    body.language = document.getElementById("admin-field-language").value;
+  }
+
+  const collection = kind === "redirect" ? "redirects" : "pastes";
+  const path = original
+    ? "/admin/api/" + collection + "/" + encodeURIComponent(original)
+    : "/admin/api/" + collection;
+
+  error.textContent = "Saving...";
+  try {
+    await adminRequest(original ? "PUT" : "POST", path, body);
+    dialog.close();
+    await loadAdminItems(state);
+  } catch (err) {
+    error.textContent = "Error: " + err.message;
+  }
+}
+
+// removeAdminItem asks once, then removes the row. There is no undo.
+async function removeAdminItem(state, kind, name) {
+  if (!confirm("Remove the " + kind + " " + name + "? This cannot be undone.")) return;
+  const collection = kind === "redirect" ? "redirects" : "pastes";
+  try {
+    await adminRequest("DELETE", "/admin/api/" + collection + "/" + encodeURIComponent(name));
+    await loadAdminItems(state);
+  } catch (err) {
+    document.getElementById("admin-status").textContent = "Error: " + err.message;
+  }
+}
+
 // ---- Appearance: theme and accent ----------------------------------------
 // The palette already uses light-dark(), so a theme change is one
 // color-scheme swap on the root element, and no second palette exists. The

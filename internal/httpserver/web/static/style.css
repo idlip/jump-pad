@@ -255,6 +255,138 @@ footer {
   color: var(--base03);
   font-size: 0.8rem;
 }
+
+/* Admin page. Same rule as everywhere else: native elements, ids, and
+   attributes only, no class names. The tables are dense on purpose, and
+   they scroll sideways instead of pushing the page wider. */
+
+#admin table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-block: 0.5rem 1.5rem;
+  font-size: 0.85rem;
+}
+
+#admin th,
+#admin td {
+  border: 1px solid var(--base02);
+  padding: 0.3rem 0.4rem;
+  text-align: start;
+  vertical-align: top;
+  max-width: 14rem;
+  overflow-wrap: anywhere;
+}
+
+#admin th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+  background: var(--base01);
+}
+
+#admin th[data-sort]:hover {
+  color: var(--base09);
+}
+
+#admin th[aria-sort="ascending"]::after {
+  content: " \2191";
+}
+
+#admin th[aria-sort="descending"]::after {
+  content: " \2193";
+}
+
+#admin tr[data-expired] td {
+  color: var(--base03);
+}
+
+#admin td button {
+  min-height: 1.9rem;
+  padding: 0.1rem 0.5rem;
+  margin-inline-end: 0.25rem;
+  font-size: 0.8rem;
+}
+
+#admin h3 {
+  font-size: 0.95rem;
+  margin-block-end: 0;
+  border-block-end: 1px solid var(--base02);
+  padding-block-end: 0.25rem;
+}
+
+#admin h3 button {
+  min-height: 1.9rem;
+  padding: 0.1rem 0.5rem;
+  margin-inline-start: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: normal;
+}
+
+#admin-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#admin-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-weight: normal;
+}
+
+input[type="checkbox"] {
+  width: auto;
+  min-height: auto;
+}
+
+#admin-auth {
+  max-width: 22rem;
+}
+
+#admin-status:not(:empty) {
+  color: var(--base08);
+}
+
+#admin-dialog {
+  background: var(--base00);
+  color: var(--base05);
+  border: 1px solid var(--base03);
+  padding: 1rem;
+  width: min(38rem, 92vw);
+}
+
+#admin-dialog::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+#admin-dialog h3 {
+  margin-block-start: 0;
+}
+
+#admin-expiry-hint {
+  display: block;
+  color: var(--base03);
+  font-size: 0.8rem;
+}
+
+#admin-field-content {
+  field-sizing: fixed;
+  height: 14rem;
+  min-height: 14rem;
+  font-family: ui-monospace, monospace;
+}
+
+#admin-dialog-error:not(:empty) {
+  color: var(--base08);
+}
+
+#admin-dialog-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 /* Appearance controls: a theme toggle and an accent picker, on the title
    line. The palette uses light-dark(), so app.js flips one color-scheme
    value on :root, and the accent picker overrides --base09 alone. */
