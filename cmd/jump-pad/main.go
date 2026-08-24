@@ -19,6 +19,7 @@ func main() {
 	addr := flag.String("addr", "", "listen address, e.g. :8080")
 	dbPath := flag.String("db", "", "sqlite file path")
 	token := flag.String("token", "", "secret required on the create routes")
+	adminToken := flag.String("admin-token", "", "secret required on the admin routes; empty removes them")
 	webDir := flag.String("web-dir", "", "on-disk frontend override dir")
 	redirectPrefix := flag.String("redirect-prefix", "", `path prefix before a redirect slug, e.g. "/r/"`)
 	pastePrefix := flag.String("paste-prefix", "", `path prefix before a raw paste id, e.g. "/p/"`)
@@ -33,6 +34,7 @@ func main() {
 		addr:           *addr,
 		dbPath:         *dbPath,
 		token:          *token,
+		adminToken:     *adminToken,
 		webDir:         *webDir,
 		redirectPrefix: *redirectPrefix,
 		pastePrefix:    *pastePrefix,
@@ -68,7 +70,7 @@ func loadConfig(path string) (config.Config, error) {
 // flagValues carries the command line values, so applyFlags keeps one
 // parameter instead of a long list.
 type flagValues struct {
-	addr, dbPath, token, webDir, redirectPrefix, pastePrefix string
+	addr, dbPath, token, adminToken, webDir, redirectPrefix, pastePrefix string
 }
 
 // applyFlags overrides cfg with every non-empty flag. A flag wins over the
@@ -81,6 +83,7 @@ func applyFlags(cfg config.Config, flags flagValues) config.Config {
 		{flags.addr, &cfg.Addr},
 		{flags.dbPath, &cfg.DBPath},
 		{flags.token, &cfg.AuthToken},
+		{flags.adminToken, &cfg.AdminToken},
 		{flags.webDir, &cfg.WebDir},
 		{flags.redirectPrefix, &cfg.RedirectPrefix},
 		{flags.pastePrefix, &cfg.PastePrefix},
