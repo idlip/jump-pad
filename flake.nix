@@ -38,7 +38,7 @@
             pname = "jump-pad";
             version = "0.1.0";
             src = ./.;
-            vendorHash = "";
+            vendorHash = "sha256-5WaCZ29wuU/aP05IBHTM0WhELYrYoerGlIS3QxoXL5o=";
             subPackages = [ "cmd/jump-pad" ];
           };
         });

@@ -19,3 +19,7 @@ nix-build:
 # Remove build/dev artifacts
 clean:
     rm -f jump-pad dev.db dev.db-wal dev.db-shm result
+
+# Regenerate docs/api.org from the route table
+apidocs:
+    go run ./cmd/apidocs
