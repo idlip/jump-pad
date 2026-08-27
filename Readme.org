@@ -9,6 +9,17 @@ The intention is to make it work forever, thus wholly stays vanilla in implement
 
 - Inspired by [[https://news.ycombinator.com/][Hacker news]], [[https://lobste.rs/][Lobste.rs]] and [[https://miniflux.app/opinionated.html][Miniflux]] to stay opinionated and with no BS. It works and it needs no cosmetic bloat.
 
+** Demo
+
+- Jump pad default UI showing redirect and paste as option.
+[[file:assets/jump-pad.png]]
+
+- Jump pad Admin UI shown to edit or remove entries
+[[file:assets/jump-pad-admin.png]]
+
+- Jump pad workflow recording
+[[file:assets/jump-pad.mp4]]
+
 ** Features
 
 - *Core* :: Shortener - Helps in redirect URLs very easily in an instant without any network queue.
