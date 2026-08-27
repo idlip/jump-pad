@@ -18,7 +18,7 @@ The intention is to make it work forever, thus wholly stays vanilla in implement
 [[file:assets/jump-pad-admin.png]]
 
 - Jump pad workflow recording
-[[file:assets/jump-pad.mp4]]
+[[https://github.com/user-attachments/assets/18587633-6960-4d05-a770-35e8f9c5c5e1]]
 
 ** Features
 
