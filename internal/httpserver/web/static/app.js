@@ -85,10 +85,10 @@ function wirePastePreviewToggle() {
   const preview = document.getElementById("paste-preview");
   const language = document.getElementById("paste-language");
 
-  toggle.addEventListener("click", () => {
+  toggle.addEventListener("click", async () => {
     const editing = preview.hidden;
     if (editing) {
-      highlightInto(document.getElementById("paste-highlight"), textarea.value, language.value);
+      await highlightInto(document.getElementById("paste-highlight"), textarea.value, language.value);
     }
     preview.hidden = !editing;
     textarea.hidden = editing;
@@ -149,7 +149,7 @@ async function loadPaste(id) {
       return;
     }
     const text = await res.text();
-    highlightInto(code, text, res.headers.get("X-Paste-Language") || "auto");
+    await highlightInto(code, text, res.headers.get("X-Paste-Language") || "auto");
     status.textContent = "";
     wireViewActions(id, text);
   } catch (err) {
@@ -168,8 +168,36 @@ function wireViewActions(id, text) {
   actions.hidden = false;
 }
 
-// highlightInto renders text into code, using hljs's language grammar if known, else auto-detect.
-function highlightInto(code, text, language) {
+// laod highlight.js only when necessary and required
+function ensureHighlighter() {
+  if (!window.jumppadHighlighter) {
+    window.jumppadHighlighter = new Promise((resolve, reject) => {
+      const style = document.createElement("link");
+      style.rel = "stylesheet";
+      style.href = "/static/vendor/highlight.min.css";
+
+      const script = document.createElement("script");
+      script.src = "/static/vendor/highlight.min.js";
+      script.onload = resolve;
+      script.onerror = () => reject(new Error("cannot load highlight.js"));
+
+      document.head.append(style, script);
+    });
+  }
+  return window.jumppadHighlighter;
+}
+
+// highlightInto renders text into code, using hljs's language grammar if
+// known, else auto-detect.
+async function highlightInto(code, text, language) {
+  try {
+    await ensureHighlighter();
+  } catch {
+    code.className = "";
+    code.textContent = text;
+    return;
+  }
+
   code.removeAttribute("data-highlighted");
   if (language && language !== "auto") {
     code.textContent = text;
