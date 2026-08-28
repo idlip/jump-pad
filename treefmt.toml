@@ -1,0 +1,11 @@
+[formatter.go]
+command = "gofumpt"
+options = ["-l", "-w"]
+includes = ["*.go"]
+excludes = ["vendor/**"]
+
+[formatter.web]
+command = "prettier"
+options = ["--write"]
+includes = ["*.html", "*.css", "*.js"]
+excludes = ["**/static/vendor/**"]

@@ -18,9 +18,10 @@
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
-              go gopls gotools
+              go gopls gotools gofumpt
               sqlite
               just
+              prettier treefmt
             ];
 
             shellHook = ''
@@ -40,6 +41,12 @@
             src = ./.;
             vendorHash = "sha256-5WaCZ29wuU/aP05IBHTM0WhELYrYoerGlIS3QxoXL5o=";
             subPackages = [ "cmd/jump-pad" ];
+
+            meta = {
+              description = "Minimal URL shortener and pastebin, one Go binary";
+              license = pkgs.lib.licenses.mit;
+              mainProgram = "jump-pad";
+            };
           };
         });
 

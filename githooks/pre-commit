@@ -1,0 +1,7 @@
+#!/bin/sh
+# Format the tree and run tests before every commit.
+set -e
+
+treefmt --fail-on-change
+
+just test
