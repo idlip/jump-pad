@@ -2,8 +2,25 @@
 // the current path -- server sends this same file for every page route.
 
 route();
-wireRedirectForm();
-wirePasteForm();
+wireCreateForm("redirect-form", "/redirects", "redirect-token", (out, slug) => {
+  renderLinkRow(
+    out,
+    location.origin + window.JUMPPAD_CONFIG.redirectPrefix + slug,
+    "Your short link",
+  );
+});
+wireCreateForm("paste-form", "/pastes", "paste-token", (out, id) => {
+  renderLinkRow(out, location.origin + "/view/" + id, "Highlighted view");
+  renderLinkRow(
+    out,
+    location.origin + window.JUMPPAD_CONFIG.pastePrefix + id,
+    "Raw text",
+    "works with curl too: curl " +
+      location.origin +
+      window.JUMPPAD_CONFIG.pastePrefix +
+      id,
+  );
+});
 wirePastePreviewToggle();
 wirePasteFileUpload();
 wireExpiryCustomDate("redirect-expiry", "redirect-expiry-date-row");
@@ -17,16 +34,21 @@ const maxPasteBytes = 500 * 1024; // must match the backend's cap
 // hideTokenFieldsIfUnneeded hides the auth-token inputs when the server has no token configured.
 function hideTokenFieldsIfUnneeded() {
   if (window.JUMPPAD_CONFIG.authRequired) return;
-  document.getElementById("redirect-token-row").hidden = true;
-  document.getElementById("paste-token-row").hidden = true;
+  $("redirect-token-row").hidden = true;
+  $("paste-token-row").hidden = true;
 }
 
 // route shows the section matching location.pathname, and loads a paste if viewing one.
 function route() {
-  const sections = { "/": "landing", "/new-redirect": "new-redirect", "/new-paste": "new-paste", "/admin": "admin" };
+  const sections = {
+    "/": "landing",
+    "/new-redirect": "new-redirect",
+    "/new-paste": "new-paste",
+    "/admin": "admin",
+  };
   const path = location.pathname;
   const id = path.startsWith("/view/") ? path.slice("/view/".length) : null;
-  const activeId = id ? "view-paste" : (sections[path] || "landing");
+  const activeId = id ? "view-paste" : sections[path] || "landing";
 
   for (const section of document.querySelectorAll("main > section")) {
     section.hidden = section.id !== activeId;
@@ -37,41 +59,27 @@ function route() {
 
 // wireExpiryCustomDate shows the date input only when its select is set to "custom".
 function wireExpiryCustomDate(selectId, rowId) {
-  const select = document.getElementById(selectId);
-  const row = document.getElementById(rowId);
-  select.addEventListener("change", () => { row.hidden = select.value !== "custom"; });
-}
-
-// wireRedirectForm submits the redirect-creation form and shows the resulting short link.
-function wireRedirectForm() {
-  const form = document.getElementById("redirect-form");
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const out = document.getElementById("redirect-result");
-    out.textContent = "Creating...";
-    try {
-      const slug = await submitForm(form, "/redirects", "redirect-token");
-      out.textContent = "";
-      renderLinkRow(out, location.origin + window.JUMPPAD_CONFIG.redirectPrefix + slug, "Your short link");
-    } catch (err) {
-      out.textContent = "Error: " + err.message;
-    }
+  const select = $(selectId);
+  const row = $(rowId);
+  select.addEventListener("change", () => {
+    row.hidden = select.value !== "custom";
   });
 }
 
-// wirePasteForm submits the paste-creation form and shows both the highlighted and raw links.
-function wirePasteForm() {
-  const form = document.getElementById("paste-form");
+// wireCreateForm submits a creation form to path, and hands the result text
+// to renderResult(out, text) on success. formId's prefix (before "-form")
+// names its token input and its result box, e.g. "redirect-token"/"redirect-result".
+function wireCreateForm(formId, path, tokenId, renderResult) {
+  const form = $(formId);
+  const prefix = formId.slice(0, formId.lastIndexOf("-form"));
+  const out = $(prefix + "-result");
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const out = document.getElementById("paste-result");
     out.textContent = "Creating...";
     try {
-      const id = await submitForm(form, "/pastes", "paste-token");
+      const text = await submitForm(form, path, tokenId);
       out.textContent = "";
-      renderLinkRow(out, location.origin + "/view/" + id, "Highlighted view");
-      renderLinkRow(out, location.origin + window.JUMPPAD_CONFIG.pastePrefix + id, "Raw text",
-                    "works with curl too: curl " + location.origin + window.JUMPPAD_CONFIG.pastePrefix + id);
+      renderResult(out, text);
     } catch (err) {
       out.textContent = "Error: " + err.message;
     }
@@ -80,15 +88,15 @@ function wirePasteForm() {
 
 // wirePastePreviewToggle swaps the paste textarea for a highlighted read-only preview, and back.
 function wirePastePreviewToggle() {
-  const toggle = document.getElementById("paste-preview-toggle");
-  const textarea = document.getElementById("paste-content");
-  const preview = document.getElementById("paste-preview");
-  const language = document.getElementById("paste-language");
+  const toggle = $("paste-preview-toggle");
+  const textarea = $("paste-content");
+  const preview = $("paste-preview");
+  const language = $("paste-language");
 
   toggle.addEventListener("click", async () => {
     const editing = preview.hidden;
     if (editing) {
-      await highlightInto(document.getElementById("paste-highlight"), textarea.value, language.value);
+      await highlightInto($("paste-highlight"), textarea.value, language.value);
     }
     preview.hidden = !editing;
     textarea.hidden = editing;
@@ -99,9 +107,9 @@ function wirePastePreviewToggle() {
 
 // wirePasteFileUpload loads a chosen text/code file into the content textarea, rejecting binaries and oversized files.
 function wirePasteFileUpload() {
-  const input = document.getElementById("paste-file");
-  const status = document.getElementById("paste-file-status");
-  const textarea = document.getElementById("paste-content");
+  const input = $("paste-file");
+  const status = $("paste-file-status");
+  const textarea = $("paste-content");
 
   input.addEventListener("change", async () => {
     const file = input.files[0];
@@ -116,13 +124,15 @@ function wirePasteFileUpload() {
 
     const text = await file.text();
     if (looksBinary(text)) {
-      status.textContent = "Error: that looks like a binary file -- only text/code files are supported.";
+      status.textContent =
+        "Error: that looks like a binary file -- only text/code files are supported.";
       input.value = "";
       return;
     }
 
     textarea.value = text;
-    status.textContent = "Loaded " + file.name + " (" + text.length + " chars).";
+    status.textContent =
+      "Loaded " + file.name + " (" + text.length + " chars).";
   });
 }
 
@@ -140,16 +150,21 @@ function looksBinary(text) {
 
 // loadPaste fetches a raw paste by id, renders it highlighted, and wires the copy/raw controls.
 async function loadPaste(id) {
-  const status = document.getElementById("view-status");
-  const code = document.getElementById("view-code");
+  const status = $("view-status");
+  const code = $("view-code");
   try {
     const res = await fetch(window.JUMPPAD_CONFIG.pastePrefix + id);
     if (!res.ok) {
-      status.textContent = res.status === 410 ? "This paste has expired." : "Paste not found.";
+      status.textContent =
+        res.status === 410 ? "This paste has expired." : "Paste not found.";
       return;
     }
     const text = await res.text();
-    await highlightInto(code, text, res.headers.get("X-Paste-Language") || "auto");
+    await highlightInto(
+      code,
+      text,
+      res.headers.get("X-Paste-Language") || "auto",
+    );
     status.textContent = "";
     wireViewActions(id, text);
   } catch (err) {
@@ -159,9 +174,9 @@ async function loadPaste(id) {
 
 // wireViewActions shows and wires the Copy/Raw controls under a successfully loaded paste.
 function wireViewActions(id, text) {
-  const actions = document.getElementById("view-actions");
-  const rawLink = document.getElementById("view-raw-link");
-  const copyButton = document.getElementById("view-copy");
+  const actions = $("view-actions");
+  const rawLink = $("view-raw-link");
+  const copyButton = $("view-copy");
 
   rawLink.href = window.JUMPPAD_CONFIG.pastePrefix + id;
   copyButton.onclick = () => navigator.clipboard.writeText(text);
@@ -214,7 +229,7 @@ function resolveExpiry(form) {
   const select = form.querySelector('select[name="expiry"]');
   if (!select) return null;
   if (select.value === "custom") {
-    return document.getElementById(select.id + "-date").value;
+    return $(select.id + "-date").value;
   }
   return select.value;
 }
@@ -225,7 +240,7 @@ async function submitForm(form, path, tokenInputId) {
   const expiry = resolveExpiry(form);
   if (expiry !== null) body.set("expiry", expiry);
 
-  const token = document.getElementById(tokenInputId).value;
+  const token = $(tokenInputId).value;
   const headers = { "Content-Type": "application/x-www-form-urlencoded" };
   if (token) headers["X-Auth-Token"] = token;
 
@@ -254,7 +269,9 @@ function renderLinkRow(out, url, label, hint) {
   button.addEventListener("click", async () => {
     await navigator.clipboard.writeText(url);
     status.textContent = "Copied -- you can share or open this now.";
-    setTimeout(() => { status.textContent = ""; }, 4000);
+    setTimeout(() => {
+      status.textContent = "";
+    }, 4000);
   });
 
   row.append(document.createTextNode(label + ": "), text, button, status);
@@ -276,7 +293,7 @@ function renderLinkRow(out, url, label, hint) {
 // showAdminLink reveals the Admin link when the server has an admin token.
 function showAdminLink() {
   if (window.JUMPPAD_CONFIG.adminEnabled) {
-    document.getElementById("nav-admin").hidden = false;
+    $("nav-admin").hidden = false;
   }
 }
 
@@ -287,30 +304,45 @@ function adminToken() {
 
 // initAdmin wires the token form, the two tables, and the dialog.
 function initAdmin() {
-  const status = document.getElementById("admin-status");
+  const status = $("admin-status");
   if (!window.JUMPPAD_CONFIG.adminEnabled) {
-    status.textContent = "The admin page is off. Set admin_token in the server configuration to switch it on.";
-    document.getElementById("admin-auth").hidden = true;
+    status.textContent =
+      "The admin page is off. Set admin_token in the server configuration to switch it on.";
+    $("admin-auth").hidden = true;
     return;
   }
 
-  const state = { redirects: [], pastes: [], sort: { redirects: null, pastes: null } };
+  const state = {
+    redirects: [],
+    pastes: [],
+    sort: { redirects: null, pastes: null },
+  };
 
-  document.getElementById("admin-auth").addEventListener("submit", (event) => {
+  $("admin-auth").addEventListener("submit", (event) => {
     event.preventDefault();
-    sessionStorage.setItem("jumppad-admin-token", document.getElementById("admin-token").value);
+    sessionStorage.setItem("jumppad-admin-token", $("admin-token").value);
     loadAdminItems(state);
   });
-  document.getElementById("admin-reload").addEventListener("click", () => loadAdminItems(state));
-  document.getElementById("admin-forget").addEventListener("click", () => {
+  document
+    .getElementById("admin-reload")
+    .addEventListener("click", () => loadAdminItems(state));
+  $("admin-forget").addEventListener("click", () => {
     sessionStorage.removeItem("jumppad-admin-token");
     location.reload();
   });
-  document.getElementById("admin-show-expired").addEventListener("change", () => renderAdminTables(state));
-  document.getElementById("admin-add-redirect").addEventListener("click", () => openAdminDialog("redirect", null));
-  document.getElementById("admin-add-paste").addEventListener("click", () => openAdminDialog("paste", null));
-  document.getElementById("admin-dialog-cancel").addEventListener("click", () => document.getElementById("admin-dialog").close());
-  document.getElementById("admin-form").addEventListener("submit", (event) => {
+  document
+    .getElementById("admin-show-expired")
+    .addEventListener("change", () => renderAdminTables(state));
+  document
+    .getElementById("admin-add-redirect")
+    .addEventListener("click", () => openAdminDialog("redirect", null));
+  document
+    .getElementById("admin-add-paste")
+    .addEventListener("click", () => openAdminDialog("paste", null));
+  document
+    .getElementById("admin-dialog-cancel")
+    .addEventListener("click", () => $("admin-dialog").close());
+  $("admin-form").addEventListener("submit", (event) => {
     event.preventDefault();
     saveAdminItem(state);
   });
@@ -319,7 +351,7 @@ function initAdmin() {
   wireAdminSorting(state, "pastes");
 
   if (adminToken()) {
-    document.getElementById("admin-token").value = adminToken();
+    $("admin-token").value = adminToken();
     loadAdminItems(state);
   }
 }
@@ -338,41 +370,54 @@ async function adminRequest(method, path, body) {
 
   const text = await res.text();
   const parsed = text ? JSON.parse(text) : null;
-  if (!res.ok) throw new Error(parsed && parsed.error ? parsed.error : res.status + " " + res.statusText);
+  if (!res.ok)
+    throw new Error(
+      parsed && parsed.error ? parsed.error : res.status + " " + res.statusText,
+    );
   return parsed;
 }
 
 // loadAdminItems reads both tables and renders them.
 async function loadAdminItems(state) {
-  const status = document.getElementById("admin-status");
+  const status = $("admin-status");
   status.textContent = "Loading...";
   try {
     const items = await adminRequest("GET", "/admin/api/items");
     state.redirects = items.redirects || [];
     state.pastes = items.pastes || [];
-    document.getElementById("admin-auth").hidden = true;
-    document.getElementById("admin-tables").hidden = false;
+    $("admin-auth").hidden = true;
+    $("admin-tables").hidden = false;
     status.textContent = "";
     renderAdminTables(state);
   } catch (err) {
     status.textContent = "Error: " + err.message;
-    document.getElementById("admin-auth").hidden = false;
-    document.getElementById("admin-tables").hidden = true;
+    $("admin-auth").hidden = false;
+    $("admin-tables").hidden = true;
   }
 }
 
 // renderAdminTables redraws both tables from the state.
 function renderAdminTables(state) {
-  renderAdminRows(state, "redirects", ["slug", "target_url", "created_at", "expires_at"]);
-  renderAdminRows(state, "pastes", ["id", "language", "created_at", "expires_at"]);
+  renderAdminRows(state, "redirects", [
+    "slug",
+    "target_url",
+    "created_at",
+    "expires_at",
+  ]);
+  renderAdminRows(state, "pastes", [
+    "id",
+    "language",
+    "created_at",
+    "expires_at",
+  ]);
 }
 
 // renderAdminRows redraws one table body, hiding expired rows unless the
 // checkbox asks for them.
 function renderAdminRows(state, collection, columns) {
-  const table = document.getElementById("admin-" + collection);
+  const table = $("admin-" + collection);
   const body = table.querySelector("tbody");
-  const showExpired = document.getElementById("admin-show-expired").checked;
+  const showExpired = $("admin-show-expired").checked;
   const order = state.sort[collection];
 
   let rows = state[collection].filter((row) => showExpired || !isExpired(row));
@@ -382,13 +427,22 @@ function renderAdminRows(state, collection, columns) {
   for (const row of rows) {
     const line = document.createElement("tr");
     if (isExpired(row)) line.setAttribute("data-expired", "true");
-    for (const column of columns) line.append(adminCell(collection, row, column));
+    for (const column of columns)
+      line.append(adminCell(collection, row, column));
     line.append(adminActions(state, collection, row));
     body.append(line);
   }
 
   const hidden = state[collection].length - rows.length;
-  table.setAttribute("aria-label", collection + ": " + rows.length + " shown, " + hidden + " expired and hidden");
+  table.setAttribute(
+    "aria-label",
+    collection +
+      ": " +
+      rows.length +
+      " shown, " +
+      hidden +
+      " expired and hidden",
+  );
 }
 
 // adminCell builds one table cell. The name cell links to the live item.
@@ -398,9 +452,10 @@ function adminCell(collection, row, column) {
 
   if (column === "slug" || column === "id") {
     const link = document.createElement("a");
-    link.href = collection === "redirects"
-      ? window.JUMPPAD_CONFIG.redirectPrefix + value
-      : "/view/" + value;
+    link.href =
+      collection === "redirects"
+        ? window.JUMPPAD_CONFIG.redirectPrefix + value
+        : "/view/" + value;
     link.textContent = value;
     cell.append(link);
     return cell;
@@ -443,7 +498,7 @@ function adminActions(state, collection, row) {
 
 // wireAdminSorting makes each marked header sort its own table.
 function wireAdminSorting(state, collection) {
-  const table = document.getElementById("admin-" + collection);
+  const table = $("admin-" + collection);
   for (const header of table.querySelectorAll("th[data-sort]")) {
     header.addEventListener("click", () => {
       const column = header.dataset.sort;
@@ -451,7 +506,8 @@ function wireAdminSorting(state, collection) {
       const ascending = !(order && order.column === column && order.ascending);
       state.sort[collection] = { column, ascending };
 
-      for (const other of table.querySelectorAll("th[data-sort]")) other.removeAttribute("aria-sort");
+      for (const other of table.querySelectorAll("th[data-sort]"))
+        other.removeAttribute("aria-sort");
       header.setAttribute("aria-sort", ascending ? "ascending" : "descending");
       renderAdminTables(state);
     });
@@ -467,7 +523,10 @@ function wireAdminSorting(state, collection) {
 // sortAdminRows returns a sorted copy, with empty values last.
 function sortAdminRows(rows, column, ascending) {
   const direction = ascending ? 1 : -1;
-  return [...rows].sort((left, right) => compareAdminValues(left[column], right[column]) * direction);
+  return [...rows].sort(
+    (left, right) =>
+      compareAdminValues(left[column], right[column]) * direction,
+  );
 }
 
 // compareAdminValues orders two cell values, and keeps an empty value last.
@@ -480,7 +539,11 @@ function compareAdminValues(left, right) {
 
 // isExpired says whether a row is past its expiry time.
 function isExpired(row) {
-  return row.expires_at !== null && row.expires_at !== undefined && row.expires_at * 1000 < Date.now();
+  return (
+    row.expires_at !== null &&
+    row.expires_at !== undefined &&
+    row.expires_at * 1000 < Date.now()
+  );
 }
 
 // formatUnix shows a unix time in the reader's own locale.
@@ -491,28 +554,28 @@ function formatUnix(seconds) {
 // openAdminDialog fills the one dialog for the four cases: add or edit, a
 // redirect or a paste. A null row means add.
 function openAdminDialog(kind, row) {
-  const dialog = document.getElementById("admin-dialog");
+  const dialog = $("admin-dialog");
   const isPaste = kind === "paste";
-  const name = row ? (row.slug || row.id) : "";
+  const name = row ? row.slug || row.id : "";
 
   dialog.dataset.kind = kind;
   dialog.dataset.original = name;
-  document.getElementById("admin-dialog-title").textContent = (row ? "Edit " : "Add a ") + kind;
-  document.getElementById("admin-dialog-error").textContent = "";
+  $("admin-dialog-title").textContent = (row ? "Edit " : "Add a ") + kind;
+  $("admin-dialog-error").textContent = "";
 
-  document.getElementById("admin-row-target").hidden = isPaste;
-  document.getElementById("admin-row-language").hidden = !isPaste;
-  document.getElementById("admin-row-content").hidden = !isPaste;
-  document.getElementById("admin-field-target").required = !isPaste;
-  document.getElementById("admin-field-content").required = isPaste;
-  document.getElementById("admin-field-slug").required = !isPaste || Boolean(row);
+  $("admin-row-target").hidden = isPaste;
+  $("admin-row-language").hidden = !isPaste;
+  $("admin-row-content").hidden = !isPaste;
+  $("admin-field-target").required = !isPaste;
+  $("admin-field-content").required = isPaste;
+  $("admin-field-slug").required = !isPaste || Boolean(row);
 
-  document.getElementById("admin-field-slug").value = name;
-  document.getElementById("admin-field-target").value = row ? (row.target_url || "") : "";
-  document.getElementById("admin-field-language").value = row ? (row.language || "") : "";
-  document.getElementById("admin-field-content").value = "";
-  document.getElementById("admin-field-expiry").value = "";
-  document.getElementById("admin-expiry-hint").textContent = adminExpiryHint(row);
+  $("admin-field-slug").value = name;
+  $("admin-field-target").value = row ? row.target_url || "" : "";
+  $("admin-field-language").value = row ? row.language || "" : "";
+  $("admin-field-content").value = "";
+  $("admin-field-expiry").value = "";
+  $("admin-expiry-hint").textContent = adminExpiryHint(row);
 
   dialog.showModal();
   if (isPaste && row) loadAdminPasteContent(row.id);
@@ -521,7 +584,8 @@ function openAdminDialog(kind, row) {
 // adminExpiryHint warns that a save replaces every field, so an empty
 // expiry box means forever, and not "keep what it has now".
 function adminExpiryHint(row) {
-  const rules = "Empty means forever. Also takes 1d, 1w, 1m, a date such as 2027-01-01, or a duration such as 72h.";
+  const rules =
+    "Empty means forever. Also takes 1d, 1w, 1m, a date such as 2027-01-01, or a duration such as 72h.";
   if (!row) return rules;
   const now = row.expires_at === null ? "forever" : formatUnix(row.expires_at);
   return "Now: " + now + ". A save replaces it. " + rules;
@@ -529,36 +593,40 @@ function adminExpiryHint(row) {
 
 // loadAdminPasteContent fills the content box, expired paste included.
 async function loadAdminPasteContent(id) {
-  const field = document.getElementById("admin-field-content");
+  const field = $("admin-field-content");
   field.value = "Loading...";
   try {
-    const one = await adminRequest("GET", "/admin/api/pastes/" + encodeURIComponent(id));
+    const one = await adminRequest(
+      "GET",
+      "/admin/api/pastes/" + encodeURIComponent(id),
+    );
     field.value = one.content || "";
   } catch (err) {
     field.value = "";
-    document.getElementById("admin-dialog-error").textContent = "Error reading the content: " + err.message;
+    $("admin-dialog-error").textContent =
+      "Error reading the content: " + err.message;
   }
 }
 
 // saveAdminItem sends an add or a full replacement, then reloads the list.
 async function saveAdminItem(state) {
-  const dialog = document.getElementById("admin-dialog");
+  const dialog = $("admin-dialog");
   const kind = dialog.dataset.kind;
   const original = dialog.dataset.original;
-  const error = document.getElementById("admin-dialog-error");
+  const error = $("admin-dialog-error");
 
   const body = {
-    slug: document.getElementById("admin-field-slug").value,
-    expiry: document.getElementById("admin-field-expiry").value,
+    slug: $("admin-field-slug").value,
+    expiry: $("admin-field-expiry").value,
   };
   if (kind === "redirect") {
-    body.target_url = document.getElementById("admin-field-target").value;
+    body.target_url = $("admin-field-target").value;
   } else {
-    body.content = document.getElementById("admin-field-content").value;
-    body.language = document.getElementById("admin-field-language").value;
+    body.content = $("admin-field-content").value;
+    body.language = $("admin-field-language").value;
   }
 
-  const collection = kind === "redirect" ? "redirects" : "pastes";
+  const collection = collectionFor(kind);
   const path = original
     ? "/admin/api/" + collection + "/" + encodeURIComponent(original)
     : "/admin/api/" + collection;
@@ -573,15 +641,24 @@ async function saveAdminItem(state) {
   }
 }
 
+// collectionFor names the table an item kind lives in.
+function collectionFor(kind) {
+  return kind === "redirect" ? "redirects" : "pastes";
+}
+
 // removeAdminItem asks once, then removes the row. There is no undo.
 async function removeAdminItem(state, kind, name) {
-  if (!confirm("Remove the " + kind + " " + name + "? This cannot be undone.")) return;
-  const collection = kind === "redirect" ? "redirects" : "pastes";
+  if (!confirm("Remove the " + kind + " " + name + "? This cannot be undone."))
+    return;
+  const collection = collectionFor(kind);
   try {
-    await adminRequest("DELETE", "/admin/api/" + collection + "/" + encodeURIComponent(name));
+    await adminRequest(
+      "DELETE",
+      "/admin/api/" + collection + "/" + encodeURIComponent(name),
+    );
     await loadAdminItems(state);
   } catch (err) {
-    document.getElementById("admin-status").textContent = "Error: " + err.message;
+    $("admin-status").textContent = "Error: " + err.message;
   }
 }
 
@@ -602,13 +679,15 @@ function initAppearance() {
   applyStoredTheme();
   applyStoredAccent();
 
-  document.getElementById("theme-toggle").addEventListener("click", () => {
+  $("theme-toggle").addEventListener("click", () => {
     setTheme(currentTheme() === "dark" ? "light" : "dark");
   });
-  document.getElementById("accent-color").addEventListener("input", (event) => {
+  $("accent-color").addEventListener("input", (event) => {
     setAccent(event.target.value);
   });
-  document.getElementById("accent-reset").addEventListener("click", resetAccent);
+  document
+    .getElementById("accent-reset")
+    .addEventListener("click", resetAccent);
 
   watchSystemTheme();
 }
@@ -617,7 +696,9 @@ function initAppearance() {
 function currentTheme() {
   const pinned = localStorage.getItem("jumppad-theme");
   if (pinned === "dark" || pinned === "light") return pinned;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 // applyStoredTheme pins the stored theme. With nothing stored it leaves
@@ -647,7 +728,7 @@ function applyTheme(theme) {
 // labelThemeToggle names the theme that a click switches to, so the button
 // says what it does and not what the page already is.
 function labelThemeToggle(theme) {
-  const toggle = document.getElementById("theme-toggle");
+  const toggle = $("theme-toggle");
   const other = theme === "dark" ? "light" : "dark";
   toggle.textContent = other === "dark" ? "Dark" : "Light";
   toggle.setAttribute("aria-label", "Switch to the " + other + " theme");
@@ -657,15 +738,18 @@ function labelThemeToggle(theme) {
 // watchSystemTheme keeps the button label right while no theme is pinned
 // and the system flips, for example at sunset.
 function watchSystemTheme() {
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-    if (!localStorage.getItem("jumppad-theme")) labelThemeToggle(currentTheme());
-  });
+  window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", () => {
+      if (!localStorage.getItem("jumppad-theme"))
+        labelThemeToggle(currentTheme());
+    });
 }
 
 // applyStoredAccent overrides --base09 with the stored color, and fills
 // the picker either way.
 function applyStoredAccent() {
-  const picker = document.getElementById("accent-color");
+  const picker = $("accent-color");
   const stored = localStorage.getItem("jumppad-accent");
   picker.value = stored || defaultAccent();
   if (stored) document.documentElement.style.setProperty("--base09", stored);
@@ -682,5 +766,12 @@ function setAccent(color) {
 function resetAccent() {
   localStorage.removeItem("jumppad-accent");
   document.documentElement.style.removeProperty("--base09");
-  document.getElementById("accent-color").value = defaultAccent();
+  $("accent-color").value = defaultAccent();
+}
+
+// ---- Small helpers used throughout ----------------------------------------
+
+// $ looks up one element by id.
+function $(id) {
+  return document.getElementById(id);
 }

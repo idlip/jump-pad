@@ -1,241 +1,331 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>jump-pad</title>
-<link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-<header>
-  <div id="header-top">
-    <h1><a href="/">jump-pad</a></h1>
-    <p id="appearance">
-      <button type="button" id="theme-toggle">Light</button>
-      <label for="accent-color">Accent</label>
-      <input id="accent-color" type="color" value="#dc9656">
-      <button type="button" id="accent-reset">Reset</button>
-    </p>
-  </div>
-  <p>Minimal URL shortener and pastebin. No accounts, no tracking.</p>
-</header>
-
-<nav aria-label="Main">
-  <ul>
-    <li><a href="/new-redirect">New redirect</a></li>
-    <li><a href="/new-paste">New paste</a></li>
-    <li id="nav-admin" hidden><a href="/admin">Admin</a></li>
-  </ul>
-</nav>
-
-<main>
-  <section id="landing">
-    <h2>What this does</h2>
-    <p>Two things: shorten a URL into a memorable slug, or store a piece of text and get a link back. Both can expire on a schedule you choose, or last forever.</p>
-    <ul>
-      <li><a href="/new-redirect">Create a redirect</a> -- pick a slug, give it a target URL.</li>
-      <li><a href="/new-paste">Create a paste</a> -- paste text, pick a language for highlighting, get a link.</li>
-    </ul>
-  </section>
-
-  <section id="new-redirect" hidden>
-    <h2>New redirect</h2>
-    <p id="redirect-required-note">Fields marked <span aria-hidden="true">*</span> are required.</p>
-    <form id="redirect-form">
-      <p>
-        <label for="redirect-slug">Slug <span aria-hidden="true">*</span></label>
-        <input id="redirect-slug" name="slug" required autocomplete="off" aria-describedby="redirect-required-note">
-      </p>
-      <p>
-        <label for="redirect-url">Target URL <span aria-hidden="true">*</span></label>
-        <input id="redirect-url" name="target_url" type="url" inputmode="url" required autocomplete="url" placeholder="https://example.com/page">
-      </p>
-      <p>
-        <label for="redirect-expiry">Expiry</label>
-        <select id="redirect-expiry" name="expiry">
-          <option value="">forever</option>
-          <option value="1d">1 day</option>
-          <option value="1w" selected>1 week</option>
-          <option value="1m">1 month</option>
-          <option value="custom">custom date</option>
-        </select>
-      </p>
-      <p id="redirect-expiry-date-row" hidden>
-        <label for="redirect-expiry-date">Expires on</label>
-        <input id="redirect-expiry-date" type="date">
-      </p>
-      <p id="redirect-token-row">
-        <label for="redirect-token">Auth token</label>
-        <input id="redirect-token" type="password" autocomplete="off">
-      </p>
-      <button type="submit">Create redirect</button>
-    </form>
-    <output id="redirect-result" for="redirect-form" aria-live="polite"></output>
-  </section>
-
-  <section id="new-paste" hidden>
-    <h2>New paste</h2>
-    <p id="paste-required-note">Fields marked <span aria-hidden="true">*</span> are required.</p>
-    <form id="paste-form">
-      <div id="paste-options">
-        <p>
-          <label for="paste-slug">Slug (optional)</label>
-          <input id="paste-slug" name="slug" autocomplete="off">
-        </p>
-        <p>
-          <label for="paste-language">Language</label>
-          <select id="paste-language" name="language">
-            <option value="">plaintext</option>
-            <option value="auto">auto-detect</option>
-            <option value="javascript">JavaScript</option>
-            <option value="python">Python</option>
-            <option value="go">Go</option>
-            <option value="nim">Nim</option>
-            <option value="bash">Shell</option>
-            <option value="json">JSON</option>
-            <option value="html">HTML</option>
-            <option value="css">CSS</option>
-            <option value="c">C</option>
-            <option value="cpp">C++</option>
-            <option value="rust">Rust</option>
-            <option value="sql">SQL</option>
-            <option value="markdown">Markdown</option>
-            <option value="yaml">YAML</option>
-          </select>
-        </p>
-        <p>
-          <label for="paste-expiry">Expiry</label>
-          <select id="paste-expiry" name="expiry">
-            <option value="">forever</option>
-            <option value="1d">1 day</option>
-            <option value="1w" selected>1 week</option>
-            <option value="1m">1 month</option>
-            <option value="custom">custom date</option>
-          </select>
-        </p>
-        <p id="paste-expiry-date-row" hidden>
-          <label for="paste-expiry-date">Expires on</label>
-          <input id="paste-expiry-date" type="date">
-        </p>
-        <p id="paste-token-row">
-          <label for="paste-token">Auth token</label>
-          <input id="paste-token" type="password" autocomplete="off">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>jump-pad</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header>
+      <div id="header-top">
+        <h1><a href="/">jump-pad</a></h1>
+        <p id="appearance">
+          <button type="button" id="theme-toggle">Light</button>
+          <label for="accent-color">Accent</label>
+          <input id="accent-color" type="color" value="#dc9656" />
+          <button type="button" id="accent-reset">Reset</button>
         </p>
       </div>
-      <p id="paste-editor">
-        <label for="paste-content">Content <span aria-hidden="true">*</span></label>
-        <button type="button" id="paste-preview-toggle" aria-pressed="false">Preview</button>
-        <textarea id="paste-content" name="content" required spellcheck="false" aria-describedby="paste-required-note"></textarea>
-        <pre id="paste-preview" hidden><code id="paste-highlight"></code></pre>
-      </p>
-      <p>
-        <label for="paste-file">Or load from a text/code file</label>
-        <input id="paste-file" type="file" accept="text/*,.md,.txt,.log,.diff,.patch,.py,.go,.nim,.js,.ts,.json,.yml,.yaml,.sh,.c,.cpp,.h,.rs,.sql,.css,.html">
-        <span id="paste-file-status" role="status"></span>
-      </p>
-      <button type="submit">Create paste</button>
-    </form>
-    <output id="paste-result" for="paste-form" aria-live="polite"></output>
-  </section>
+      <p>Minimal URL shortener and pastebin. No accounts, no tracking.</p>
+    </header>
 
-  <section id="view-paste" hidden>
-    <h2>Paste</h2>
-    <p id="view-status" role="status"></p>
-    <p id="view-actions" hidden>
-      <button type="button" id="view-copy">Copy</button>
-      <a id="view-raw-link" href="">Raw</a>
-      <span>-- the raw link works with curl too: <code>curl &lt;link&gt;</code></span>
-    </p>
-    <pre><code id="view-code"></code></pre>
-  </section>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="/new-redirect">New redirect</a></li>
+        <li><a href="/new-paste">New paste</a></li>
+        <li id="nav-admin" hidden><a href="/admin">Admin</a></li>
+      </ul>
+    </nav>
 
-  <section id="admin" hidden>
-    <h2>Admin</h2>
-    <p id="admin-status" role="status"></p>
-
-    <form id="admin-auth">
-      <p>
-        <label for="admin-token">Admin token</label>
-        <input id="admin-token" type="password" autocomplete="off" required>
-      </p>
-      <button type="submit">Load</button>
-    </form>
-
-    <div id="admin-tables" hidden>
-      <p id="admin-controls">
-        <label for="admin-show-expired"><input id="admin-show-expired" type="checkbox"> Show expired rows</label>
-        <button type="button" id="admin-reload">Reload</button>
-        <button type="button" id="admin-forget">Forget token</button>
-      </p>
-
-      <h3>Redirects <button type="button" id="admin-add-redirect">Add redirect</button></h3>
-      <table id="admin-redirects">
-        <thead>
-          <tr>
-            <th scope="col" data-sort="slug" tabindex="0">Slug</th>
-            <th scope="col" data-sort="target_url" tabindex="0">Target</th>
-            <th scope="col" data-sort="created_at" tabindex="0">Created</th>
-            <th scope="col" data-sort="expires_at" tabindex="0">Expires</th>
-            <th scope="col">Actions</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-
-      <h3>Pastes <button type="button" id="admin-add-paste">Add paste</button></h3>
-      <table id="admin-pastes">
-        <thead>
-          <tr>
-            <th scope="col" data-sort="id" tabindex="0">Id</th>
-            <th scope="col" data-sort="language" tabindex="0">Language</th>
-            <th scope="col" data-sort="created_at" tabindex="0">Created</th>
-            <th scope="col" data-sort="expires_at" tabindex="0">Expires</th>
-            <th scope="col">Actions</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <dialog id="admin-dialog">
-      <form id="admin-form">
-        <h3 id="admin-dialog-title">Edit</h3>
+    <main>
+      <section id="landing">
+        <h2>What this does</h2>
         <p>
-          <label for="admin-field-slug">Slug</label>
-          <input id="admin-field-slug" autocomplete="off">
+          Two things: shorten a URL into a memorable slug, or store a piece of
+          text and get a link back. Both can expire on a schedule you choose, or
+          last forever.
         </p>
-        <p id="admin-row-target">
-          <label for="admin-field-target">Target URL</label>
-          <input id="admin-field-target" type="url" inputmode="url" placeholder="https://example.com/page">
-        </p>
-        <p id="admin-row-language">
-          <label for="admin-field-language">Language</label>
-          <input id="admin-field-language" autocomplete="off" placeholder="python">
-        </p>
-        <p>
-          <label for="admin-field-expiry">Expiry</label>
-          <input id="admin-field-expiry" autocomplete="off" placeholder="empty = forever" aria-describedby="admin-expiry-hint">
-          <span id="admin-expiry-hint">Empty means forever. Also takes 1d, 1w, 1m, a date such as 2027-01-01, or a duration such as 72h.</span>
-        </p>
-        <p id="admin-row-content">
-          <label for="admin-field-content">Content</label>
-          <textarea id="admin-field-content" spellcheck="false"></textarea>
-        </p>
-        <p id="admin-dialog-error" role="alert"></p>
-        <p id="admin-dialog-actions">
-          <button type="submit">Save</button>
-          <button type="button" id="admin-dialog-cancel">Cancel</button>
-        </p>
-      </form>
-    </dialog>
-  </section>
-</main>
+        <ul>
+          <li>
+            <a href="/new-redirect">Create a redirect</a> -- pick a slug, give
+            it a target URL.
+          </li>
+          <li>
+            <a href="/new-paste">Create a paste</a> -- paste text, pick a
+            language for highlighting, get a link.
+          </li>
+        </ul>
+      </section>
 
-<footer>
-  <p>Source, config, and self-hosting notes: see the project README.</p>
-</footer>
+      <section id="new-redirect" hidden>
+        <h2>New redirect</h2>
+        <p id="redirect-required-note">
+          Fields marked <span aria-hidden="true">*</span> are required.
+        </p>
+        <form id="redirect-form">
+          <p>
+            <label for="redirect-slug"
+              >Slug <span aria-hidden="true">*</span></label
+            >
+            <input
+              id="redirect-slug"
+              name="slug"
+              required
+              autocomplete="off"
+              aria-describedby="redirect-required-note"
+            />
+          </p>
+          <p>
+            <label for="redirect-url"
+              >Target URL <span aria-hidden="true">*</span></label
+            >
+            <input
+              id="redirect-url"
+              name="target_url"
+              type="url"
+              inputmode="url"
+              required
+              autocomplete="url"
+              placeholder="https://example.com/page"
+            />
+          </p>
+          <p>
+            <label for="redirect-expiry">Expiry</label>
+            <select id="redirect-expiry" name="expiry">
+              <option value="">forever</option>
+              <option value="1d">1 day</option>
+              <option value="1w" selected>1 week</option>
+              <option value="1m">1 month</option>
+              <option value="custom">custom date</option>
+            </select>
+          </p>
+          <p id="redirect-expiry-date-row" hidden>
+            <label for="redirect-expiry-date">Expires on</label>
+            <input id="redirect-expiry-date" type="date" />
+          </p>
+          <p id="redirect-token-row">
+            <label for="redirect-token">Auth token</label>
+            <input id="redirect-token" type="password" autocomplete="off" />
+          </p>
+          <button type="submit">Create redirect</button>
+        </form>
+        <output
+          id="redirect-result"
+          for="redirect-form"
+          aria-live="polite"
+        ></output>
+      </section>
 
-<script src="/static/config.js"></script>
-<script src="/static/app.js"></script>
-</body>
+      <section id="new-paste" hidden>
+        <h2>New paste</h2>
+        <p id="paste-required-note">
+          Fields marked <span aria-hidden="true">*</span> are required.
+        </p>
+        <form id="paste-form">
+          <div id="paste-options">
+            <p>
+              <label for="paste-slug">Slug (optional)</label>
+              <input id="paste-slug" name="slug" autocomplete="off" />
+            </p>
+            <p>
+              <label for="paste-language">Language</label>
+              <select id="paste-language" name="language">
+                <option value="">plaintext</option>
+                <option value="auto">auto-detect</option>
+                <option value="javascript">JavaScript</option>
+                <option value="python">Python</option>
+                <option value="go">Go</option>
+                <option value="nim">Nim</option>
+                <option value="bash">Shell</option>
+                <option value="json">JSON</option>
+                <option value="html">HTML</option>
+                <option value="css">CSS</option>
+                <option value="c">C</option>
+                <option value="cpp">C++</option>
+                <option value="rust">Rust</option>
+                <option value="sql">SQL</option>
+                <option value="markdown">Markdown</option>
+                <option value="yaml">YAML</option>
+              </select>
+            </p>
+            <p>
+              <label for="paste-expiry">Expiry</label>
+              <select id="paste-expiry" name="expiry">
+                <option value="">forever</option>
+                <option value="1d">1 day</option>
+                <option value="1w" selected>1 week</option>
+                <option value="1m">1 month</option>
+                <option value="custom">custom date</option>
+              </select>
+            </p>
+            <p id="paste-expiry-date-row" hidden>
+              <label for="paste-expiry-date">Expires on</label>
+              <input id="paste-expiry-date" type="date" />
+            </p>
+            <p id="paste-token-row">
+              <label for="paste-token">Auth token</label>
+              <input id="paste-token" type="password" autocomplete="off" />
+            </p>
+          </div>
+          <div id="paste-editor">
+            <label for="paste-content"
+              >Content <span aria-hidden="true">*</span></label
+            >
+            <button
+              type="button"
+              id="paste-preview-toggle"
+              aria-pressed="false"
+            >
+              Preview
+            </button>
+            <textarea
+              id="paste-content"
+              name="content"
+              required
+              spellcheck="false"
+              aria-describedby="paste-required-note"
+            ></textarea>
+            <pre
+              id="paste-preview"
+              hidden
+            ><code id="paste-highlight"></code></pre>
+          </div>
+          <p>
+            <label for="paste-file">Or load from a text/code file</label>
+            <input
+              id="paste-file"
+              type="file"
+              accept="text/*,.md,.txt,.log,.diff,.patch,.py,.go,.nim,.js,.ts,.json,.yml,.yaml,.sh,.c,.cpp,.h,.rs,.sql,.css,.html"
+            />
+            <span id="paste-file-status" role="status"></span>
+          </p>
+          <button type="submit">Create paste</button>
+        </form>
+        <output id="paste-result" for="paste-form" aria-live="polite"></output>
+      </section>
+
+      <section id="view-paste" hidden>
+        <h2>Paste</h2>
+        <p id="view-status" role="status"></p>
+        <p id="view-actions" hidden>
+          <button type="button" id="view-copy">Copy</button>
+          <a id="view-raw-link" href="">Raw</a>
+          <span
+            >-- the raw link works with curl too:
+            <code>curl &lt;link&gt;</code></span
+          >
+        </p>
+        <pre><code id="view-code"></code></pre>
+      </section>
+
+      <section id="admin" hidden>
+        <h2>Admin</h2>
+        <p id="admin-status" role="status"></p>
+
+        <form id="admin-auth">
+          <p>
+            <label for="admin-token">Admin token</label>
+            <input
+              id="admin-token"
+              type="password"
+              autocomplete="off"
+              required
+            />
+          </p>
+          <button type="submit">Load</button>
+        </form>
+
+        <div id="admin-tables" hidden>
+          <p id="admin-controls">
+            <label for="admin-show-expired"
+              ><input id="admin-show-expired" type="checkbox" /> Show expired
+              rows</label
+            >
+            <button type="button" id="admin-reload">Reload</button>
+            <button type="button" id="admin-forget">Forget token</button>
+          </p>
+
+          <h3>
+            Redirects
+            <button type="button" id="admin-add-redirect">Add redirect</button>
+          </h3>
+          <table id="admin-redirects">
+            <thead>
+              <tr>
+                <th scope="col" data-sort="slug" tabindex="0">Slug</th>
+                <th scope="col" data-sort="target_url" tabindex="0">Target</th>
+                <th scope="col" data-sort="created_at" tabindex="0">Created</th>
+                <th scope="col" data-sort="expires_at" tabindex="0">Expires</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+
+          <h3>
+            Pastes <button type="button" id="admin-add-paste">Add paste</button>
+          </h3>
+          <table id="admin-pastes">
+            <thead>
+              <tr>
+                <th scope="col" data-sort="id" tabindex="0">Id</th>
+                <th scope="col" data-sort="language" tabindex="0">Language</th>
+                <th scope="col" data-sort="created_at" tabindex="0">Created</th>
+                <th scope="col" data-sort="expires_at" tabindex="0">Expires</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <dialog id="admin-dialog">
+          <form id="admin-form">
+            <h3 id="admin-dialog-title">Edit</h3>
+            <p>
+              <label for="admin-field-slug">Slug</label>
+              <input id="admin-field-slug" autocomplete="off" />
+            </p>
+            <p id="admin-row-target">
+              <label for="admin-field-target">Target URL</label>
+              <input
+                id="admin-field-target"
+                type="url"
+                inputmode="url"
+                placeholder="https://example.com/page"
+              />
+            </p>
+            <p id="admin-row-language">
+              <label for="admin-field-language">Language</label>
+              <input
+                id="admin-field-language"
+                autocomplete="off"
+                placeholder="python"
+              />
+            </p>
+            <p>
+              <label for="admin-field-expiry">Expiry</label>
+              <input
+                id="admin-field-expiry"
+                autocomplete="off"
+                placeholder="empty = forever"
+                aria-describedby="admin-expiry-hint"
+              />
+              <span id="admin-expiry-hint"
+                >Empty means forever. Also takes 1d, 1w, 1m, a date such as
+                2027-01-01, or a duration such as 72h.</span
+              >
+            </p>
+            <p id="admin-row-content">
+              <label for="admin-field-content">Content</label>
+              <textarea id="admin-field-content" spellcheck="false"></textarea>
+            </p>
+            <p id="admin-dialog-error" role="alert"></p>
+            <p id="admin-dialog-actions">
+              <button type="submit">Save</button>
+              <button type="button" id="admin-dialog-cancel">Cancel</button>
+            </p>
+          </form>
+        </dialog>
+      </section>
+    </main>
+
+    <footer>
+      <p>Source, config, and self-hosting notes: see the project README.</p>
+    </footer>
+
+    <script src="/static/config.js"></script>
+    <script src="/static/app.js"></script>
+  </body>
 </html>
