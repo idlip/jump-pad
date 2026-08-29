@@ -182,3 +182,9 @@ SQLite via =modernc.org/sqlite=).
 - [ ] Rate limiting, user might ping many times. Safe to add some sensible IP limit?
 
 - [ ] Domain blocklist, just an edgecase to provide so hoster can decide?
+
+** License
+:PROPERTIES:
+:CUSTOM_ID: license
+:END:
+MIT. See [[file:LICENSE][LICENSE]]. Take it, fork it, host it, rebrand it, do not sell it. Keep the copyright notice.
