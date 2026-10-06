@@ -183,11 +183,6 @@ SQLite via =modernc.org/sqlite=).
 
 - [ ] Domain blocklist, just an edgecase to provide so hoster can decide?
 
-** References
-
-- https://github.com/Dragynfruit/pasted
-  Fairly looks solid and fun project, better to study and adapt few goodies
-
 ** License
 :PROPERTIES:
 :CUSTOM_ID: license
